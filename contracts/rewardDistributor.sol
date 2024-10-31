@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "hardhat/console.sol";
 
 contract RewardDistributor is ReentrancyGuard {
     // isSigner maps all allowed signers to true
@@ -64,11 +66,24 @@ contract RewardDistributor is ReentrancyGuard {
 
         // we don't need nonces here because the reward root is unique, and it would (for all intents and purposes)
         // be impossible to replay the same reward root with a different total amount
-        bytes32 messageHash = keccak256(abi.encode(rewardRoot, totalAmount, rewardNonce, address(this)));
+        // yaiba: why reward root is unique?
+        bytes32 messageHash = keccak256(abi.encode(rewardRoot, totalAmount, rootNonce, address(this)));
+//        console.logBytes32(rewardRoot);
+//        console.logUint(totalAmount);
+//        console.logUint(rewardNonce);
+//        console.logAddress(address(this));
+//        console.logBytes32(messageHash);
+//        console.logBytes32(MessageHashUtils.toEthSignedMessageHash(messageHash));
+//        console.log("+++++++++++");
         address[] memory memSigners = new address[](signatures.length);
         for (uint256 i = 0; i < signatures.length; i++) {
-            address signer = ECDSA.recover(messageHash, signatures[i]);
+//            console.log("pass sig-");
+//            console.logBytes(signatures[i]);
+            // MessageHashUtils.toEthSignedMessageHash to prepend EIP-191 prefix, since client use `personal_sign`
+            address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
+//            console.logAddress(signer);
             require(isSigner[signer], "Invalid signer");
+//            console.log("pass sig+");
             memSigners[i] = signer;
         }
 
@@ -89,9 +104,10 @@ contract RewardDistributor is ReentrancyGuard {
 
     // claimReward allows a user to claim a reward by providing a leaf hash and a Merkle proof.
     // The reward must be posted and not already claimed.
+    // The proof should be pre-sorted.
     function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] memory proof) external payable nonReentrant {
         address payable poster = payable(rewardRoots[rewardRoot]);
-        require(poster != address(0), "Reward root not posted");
+        require(poster != address(0), "Reward root not posted"); // kind won't happen?
 
         // get the leaf hash
         bytes32 leaf = keccak256(abi.encode(recipient, amount, address(this)));
@@ -107,7 +123,11 @@ contract RewardDistributor is ReentrancyGuard {
         uint256 excess = msg.value - posterReward;
 
         // Use call to transfer ETH to the poster (recommended for flexibility with gas limits)
+
+        // NOTE: should not transfer ETH on every claim, save gas; we can track the amount owed to the poster ????
+        // then poster need to spend gas to withdraw???
         (bool success, ) = poster.call{value: posterReward}("");
+        
         require(success, "Poster reward transfer failed");
 
         // Refund any excess ETH to the caller if applicable
@@ -126,6 +146,7 @@ contract RewardDistributor is ReentrancyGuard {
 
     // updatePosterReward updates the reward amount that each withdrawer will pay to the poster.
     // It must be signed by at least threshold signers.
+    // why we need nonce here?
     function updatePosterReward(uint256 newReward, uint256 nonce, bytes[] memory signatures) external {
         require(newReward > 0, "Reward must be greater than 0");
         require(nonce == rewardNonce, "Invalid nonce");
