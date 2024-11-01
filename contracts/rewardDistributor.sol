@@ -38,12 +38,13 @@ contract RewardDistributor is ReentrancyGuard {
     uint256 public totalPostedRewards;
 
     event RewardRootPosted(bytes32 rewardRoot, uint256 totalAmount);
-    event RewardClaimed(address recipient, uint256 amount);
+    event RewardClaimed(address recipient, address claimer,  uint256 amount);
     event RewardRateUpdated(uint256 newReward, uint256 nonce);
     event SignersUpdated(address[] newSigners, uint8 newThreshold);
 
     constructor(address[] memory _allowedSigners, uint8 _threshold, uint256 _reward, IERC20 _token) {
         require(_threshold <= _allowedSigners.length, "Threshold must be less than or equal to the number of signers");
+        require(_threshold > 0, "Threshold must be greater than 0");
         for (uint256 i = 0; i < _allowedSigners.length; i++) {
             require(_allowedSigners[i] != address(0), "Invalid signer");
             require(!isSigner[_allowedSigners[i]], "Duplicate signer");
@@ -107,10 +108,15 @@ contract RewardDistributor is ReentrancyGuard {
     // The proof should be pre-sorted.
     function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] memory proof) external payable nonReentrant {
         address payable poster = payable(rewardRoots[rewardRoot]);
-        require(poster != address(0), "Reward root not posted"); // kind won't happen?
+        require(poster != address(0), "Reward root not posted");
 
         // get the leaf hash
-        bytes32 leaf = keccak256(abi.encode(recipient, amount, address(this)));
+        // yaiba: seems whoever have access to original Merkle tree can claim the reward?
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this)))));
+//        console.logAddress(recipient);
+//        console.logUint(amount);
+//        console.logAddress(address(this));
+//        console.logBytes32(leaf);
         require(!claimedRewards[rewardRoot][leaf], "Reward already claimed");
 
         // verify the Merkle proof
@@ -123,9 +129,6 @@ contract RewardDistributor is ReentrancyGuard {
         uint256 excess = msg.value - posterReward;
 
         // Use call to transfer ETH to the poster (recommended for flexibility with gas limits)
-
-        // NOTE: should not transfer ETH on every claim, save gas; we can track the amount owed to the poster ????
-        // then poster need to spend gas to withdraw???
         (bool success, ) = poster.call{value: posterReward}("");
         
         require(success, "Poster reward transfer failed");
@@ -139,29 +142,30 @@ contract RewardDistributor is ReentrancyGuard {
         // claim the reward
         claimedRewards[rewardRoot][leaf] = true;
         totalPostedRewards -= amount;
-        require(token.transfer(recipient, amount), "Token transfer failed");
+        // yaiba: send token to msg.sender, allow claim as long as you have the proof
+        require(token.transfer(msg.sender, amount), "Token transfer failed");
 
-        emit RewardClaimed(recipient, amount);
+        emit RewardClaimed(recipient, msg.sender, amount);
     }
 
     // updatePosterReward updates the reward amount that each withdrawer will pay to the poster.
     // It must be signed by at least threshold signers.
-    // why we need nonce here?
-    function updatePosterReward(uint256 newReward, uint256 nonce, bytes[] memory signatures) external {
+    function updatePosterReward(uint256 newReward, bytes[] memory signatures) external {
         require(newReward > 0, "Reward must be greater than 0");
-        require(nonce == rewardNonce, "Invalid nonce");
+        //require(nonce == rewardNonce, "Invalid nonce"); // seems not necessary, as signatures will fail
         require(signatures.length >= threshold, "Not enough signatures");
 
-        bytes32 messageHash = keccak256(abi.encode(newReward, nonce, address(this)));
+        bytes32 messageHash = keccak256(abi.encode(newReward, rewardNonce, address(this)));
         for (uint256 i = 0; i < signatures.length; i++) {
-            address signer = ECDSA.recover(messageHash, signatures[i]);
+            address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
         posterReward = newReward;
+        uint256 curRewardNonce = rewardNonce;
         rewardNonce++;
 
-        emit RewardRateUpdated(newReward, rewardNonce);
+        emit RewardRateUpdated(newReward, curRewardNonce);
     }
 
     // updateSigners updates the list of allowed signers and the threshold.
