@@ -202,3 +202,16 @@ contract RewardDistributor is ReentrancyGuard {
         revert("Ether transfers not allowed");
     }
 }
+
+//// for echidna
+//contract TestRewardDistributor {
+//    RewardDistributor public rd;
+//
+//    constructor (address rrd) {
+//        rd = RewardDistributor(rrd);
+//    }
+//
+//    function echidna_threshold_less_equal_than_signers() public view returns (bool) {
+//        return rd.threshold < rd.signers.length;
+//    }
+//}
