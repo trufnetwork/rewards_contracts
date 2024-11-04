@@ -43,6 +43,7 @@ contract RewardDistributor is ReentrancyGuard {
     event SignersUpdated(address[] newSigners, uint8 newThreshold);
 
     constructor(address[] memory _allowedSigners, uint8 _threshold, uint256 _reward, IERC20 _token) {
+        // MAYBE ensure len(_allowedSigners) <= ?
         require(_threshold <= _allowedSigners.length, "Threshold must be less than or equal to the number of signers");
         require(_threshold > 0, "Threshold must be greater than 0");
         for (uint256 i = 0; i < _allowedSigners.length; i++) {
@@ -171,22 +172,27 @@ contract RewardDistributor is ReentrancyGuard {
     // updateSigners updates the list of allowed signers and the threshold.
     // It must be signed by at least threshold signers.
     function updateSigners(address[] memory newSigners, uint8 newThreshold, bytes[] memory signatures) external {
+        // MAYBE ensure len(newSigners) <= ?
         require(newThreshold <= newSigners.length, "Threshold must be less than or equal to the number of signers");
+        require(newThreshold > 0, "Threshold must be greater than 0");
+
         require(signatures.length >= threshold, "Not enough signatures");
 
         bytes32 messageHash = keccak256(abi.encode(newSigners, newThreshold, address(this)));
         for (uint256 i = 0; i < signatures.length; i++) {
-            address signer = ECDSA.recover(messageHash, signatures[i]);
+//            address signer = ECDSA.recover(messageHash, signatures[i]);
+            address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
         for (uint256 i = 0; i < signers.length; i++) {
-            isSigner[signers[i]] = false;
+//            isSigner[signers[i]] = false; // maybe use delete isSigner[signers[i]] ?
+            delete isSigner[signers[i]];
         }
 
         for (uint256 i = 0; i < newSigners.length; i++) {
-            require(newSigners[i] != address(0), "Invalid signer");
-            require(!isSigner[newSigners[i]], "Duplicate signer");
+            require(newSigners[i] != address(0), "Invalid new signer");
+            require(!isSigner[newSigners[i]], "Duplicate new signer");
 
             isSigner[newSigners[i]] = true;
         }

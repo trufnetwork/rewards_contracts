@@ -10,6 +10,7 @@ import {IERC20} from "../typechain-types";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import type {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 import {standardLeafHash} from "@openzeppelin/merkle-tree/dist/hashes";
+const { PANIC_CODES } = require("@nomicfoundation/hardhat-chai-matchers/panic");
 
 const abiCode = new AbiCoder();
 
@@ -34,11 +35,13 @@ function genRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonc
 function genUpdateRewardMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
     const encodedMsg = abiCode.encode(["uint256", "uint256", "address"],
         [rewardAmount, nonce, contractAddress]);
-    const messageHashBytes = getBytes(keccak256(encodedMsg))
-    // const messageHash = keccak256(encodedMsg);
-    // expect(messageHash).to.equal(toQuantity(messageHashBytes));
+    return getBytes(keccak256(encodedMsg))
+}
 
-    return messageHashBytes
+function getUpdateSignersMessageHash(signers: string[], threshold: number, rewardContract: string): Uint8Array {
+    const encodedMsg = abiCode.encode(["address[]", "uint8", "address"],
+        [signers, threshold, rewardContract]);
+    return getBytes(keccak256(encodedMsg))
 }
 
 function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: string[], leaf: string} {
@@ -157,9 +160,9 @@ describe("RewardDistributor", function () {
 
         it("Should init correctly", async function(){
             const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
-            expect(await rewardDist.threshold()).to.equal(threshold);
             expect(await rewardDist.posterReward()).to.equal(posterReward);
             expect(await rewardDist.token()).to.equal(rewardToken);
+            expect(await rewardDist.threshold()).to.equal(threshold);
             expect(await rewardDist.signers(0)).to.equal(signer1);
             expect(await rewardDist.signers(1)).to.equal(signer2);
             expect(await rewardDist.signers(2)).to.equal(signer3);
@@ -175,6 +178,8 @@ describe("RewardDistributor", function () {
     // post the very first reward, with total 400 on three users
     async function postFirstRewardFixture() {
         const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
+
+        const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
 
         // generate first reward merkle tree
         const _firstTree = genMerkleTree([user1.address, user2.address, user3.address],
@@ -206,7 +211,7 @@ describe("RewardDistributor", function () {
             reward.amount,
             [signature1, signature2, signature3])
 
-        return {rewardDist, reward, txResp};
+        return {rewardDist, reward, txResp, contractOldTokenBalance};
     }
     
     describe("Post reward", function(){
@@ -281,7 +286,7 @@ describe("RewardDistributor", function () {
         });
 
         it("Should succeed", async function(){
-            const {rewardDist, reward, txResp} = await loadFixture(postFirstRewardFixture);
+            const {rewardDist, reward, txResp, contractOldTokenBalance} = await loadFixture(postFirstRewardFixture);
 
             expect(txResp)
                 .to.emit(rewardDist, "RewardRootPosted")
@@ -289,6 +294,7 @@ describe("RewardDistributor", function () {
             expect(await rewardDist.rewardRoots(reward.root)).to.equal(rewardPoster.address);
             expect(await rewardDist.totalPostedRewards()).to.equal(reward.amount);
             expect(await rewardDist.rootNonce()).to.equal(1);
+            expect(await rewardDist.unpostedRewards()).to.equal(contractOldTokenBalance - reward.amount);
         });
     });
 
@@ -297,7 +303,7 @@ describe("RewardDistributor", function () {
 
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(rewardPoster.address);
-        const oldTotalReward = await rewardDist.totalPostedRewards();
+        const oldTotalPostedReward = await rewardDist.totalPostedRewards();
         const recipient = user1.address;
         const claimerOldTokenBalance = await rewardToken.balanceOf(rewardClaimer);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
@@ -312,7 +318,7 @@ describe("RewardDistributor", function () {
             recipient, amount, reward.root, proof, {value: minEthValue});
 
         return {rewardDist, rewardRoot: reward.root, proof, leaf, recipient, rewardClaimer, amount, txResp,
-            paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalReward,
+            paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
             claimerOldTokenBalance: claimerOldTokenBalance, contractOldTokenBalance};
     }
 
@@ -321,7 +327,7 @@ describe("RewardDistributor", function () {
 
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(rewardPoster.address);
-        const oldTotalReward = await rewardDist.totalPostedRewards();
+        const oldTotalPostedReward = await rewardDist.totalPostedRewards();
         const recipient = user1.address;
         const claimerOldTokenBalance = await rewardToken.balanceOf(rewardClaimer);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
@@ -333,7 +339,7 @@ describe("RewardDistributor", function () {
             recipient, amount, reward.root, proof, {value: minEthValue * toBigInt(2)});
 
         return {rewardDist, rewardRoot: reward.root, leaf, recipient, rewardClaimer, amount, txResp,
-            paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalReward,
+            paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalPostedReward,
             claimerOldTokenBalance: claimerOldTokenBalance, contractOldTokenBalance};
     }
 
@@ -347,7 +353,7 @@ describe("RewardDistributor", function () {
 
         it("Should revert if reward already claimed", async function(){
             const {rewardDist, rewardRoot, proof, leaf, recipient, amount, txResp,
-                paid, claimerOldBalance, posterOldBalance, oldTotalReward} = await loadFixture(claimUser1FirstRewardFixture);
+                paid, claimerOldBalance, posterOldBalance, oldTotalPostedReward} = await loadFixture(claimUser1FirstRewardFixture);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 recipient, amount, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
@@ -394,7 +400,7 @@ describe("RewardDistributor", function () {
 
         it("Should succeed", async function(){
             const {rewardDist, rewardRoot, leaf, recipient, rewardClaimer, amount, txResp,
-                paid, claimerOldBalance, posterOldBalance, oldTotalReward,
+                paid, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
                 claimerOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardFixture);
             const txReceipt = await txResp.wait();
 
@@ -404,14 +410,14 @@ describe("RewardDistributor", function () {
             expect(await hre.ethers.provider.getBalance(rewardPoster.address))
                 .to.equal(posterOldBalance + paid);
             expect(await rewardDist.claimedRewards(rewardRoot, leaf)).to.equal(true);
-            expect(await rewardDist.totalPostedRewards()).to.equal(oldTotalReward - amount);
+            expect(await rewardDist.totalPostedRewards()).to.equal(oldTotalPostedReward - amount);
             expect(await rewardToken.balanceOf(rewardClaimer)).to.equal(claimerOldTokenBalance + amount);
             expect(await rewardToken.balanceOf(rewardDist)).to.equal(contractOldTokenBalance - amount);
         })
 
         it("Should succeed with refund", async function(){
             const {rewardDist, rewardRoot, leaf, recipient, rewardClaimer, amount, txResp,
-                paid2x, claimerOldBalance, posterOldBalance, oldTotalReward,
+                paid2x, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
                 claimerOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardPay2xFixture);
             const txReceipt = await txResp.wait();
 
@@ -421,7 +427,7 @@ describe("RewardDistributor", function () {
             expect(await hre.ethers.provider.getBalance(rewardPoster.address))
                 .to.equal(posterOldBalance + paid2x/toBigInt(2));
             expect(await rewardDist.claimedRewards(rewardRoot, leaf)).to.equal(true);
-            expect(await rewardDist.totalPostedRewards()).to.equal(oldTotalReward - amount);
+            expect(await rewardDist.totalPostedRewards()).to.equal(oldTotalPostedReward - amount);
             expect(await rewardToken.balanceOf(rewardClaimer)).to.equal(claimerOldTokenBalance + amount);
             expect(await rewardToken.balanceOf(rewardDist)).to.equal(contractOldTokenBalance - amount);
         })
@@ -433,7 +439,7 @@ describe("RewardDistributor", function () {
         const nonce = await rewardDist.rewardNonce();
         const rewardAmount = posterReward2;
 
-        const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce, (await rewardDist.getAddress()));
+        const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce, await rewardDist.getAddress());
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
@@ -462,7 +468,7 @@ describe("RewardDistributor", function () {
             const nonce = await rewardDist.rewardNonce();
             const rewardAmount = posterReward2;
 
-            const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce + toBigInt(2), (await rewardDist.getAddress()));
+            const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
@@ -477,7 +483,7 @@ describe("RewardDistributor", function () {
             const nonce = await rewardDist.rewardNonce();
             const rewardAmount = posterReward2;
 
-            const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce + toBigInt(2), (await rewardDist.getAddress()));
+            const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const unknownSig = await unknownSigner.signMessage(messageHashBytes);
@@ -496,6 +502,145 @@ describe("RewardDistributor", function () {
     });
 
     describe("Update signers", function() {
+        it("Should revert if not enough signers", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
 
+            const newSigners = [signer3.address, newSigner4.address];
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, 3, ["0x00"]))
+                .to.be.revertedWith("Threshold must be less than or equal to the number of signers");
+        });
+        it("Should reject if threshold is less than zero", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer3.address, newSigner4.address];
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, -2, ["0x00"])).to.be.rejected;
+        });
+        it("Should revert if threshold is zero", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer3.address, newSigner4.address];
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, 0, ["0x00"]))
+                .to.be.revertedWith("Threshold must be greater than 0");
+        });
+        it("Should revert if not enough signatures", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer3.address, newSigner4.address];
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, 1, ["0x00"]))
+                .to.be.revertedWith("Not enough signatures");
+        });
+        it("Should revert if invalid signer(wrong message)", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer3.address, newSigner4.address];
+            const newThreshold = 2;
+            const messageHashBytes = getUpdateSignersMessageHash(
+                newSigners,
+                1, // not the same threshold
+                await rewardDist.getAddress());
+            const signatures = [
+                await signer1.signMessage(messageHashBytes),
+                await signer2.signMessage(messageHashBytes),
+            ]
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, newThreshold, signatures))
+                .to.be.revertedWith("Invalid signer");
+        });
+        it("Should revert if invalid signer(unknown signer)", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer3.address, newSigner4.address];
+            const newThreshold = 2;
+            const messageHashBytes = getUpdateSignersMessageHash(
+                newSigners, newThreshold, await rewardDist.getAddress());
+            const signatures = [
+                await signer1.signMessage(messageHashBytes),
+                await unknownSigner.signMessage(messageHashBytes),
+            ]
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, newThreshold, signatures))
+                .to.be.revertedWith("Invalid signer");
+        });
+        it("Should revert if invalid new signer(zero address)", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer2.address, signer3.address, zeroAddress()]; // with zero address signer
+            const newThreshold = 2;
+            const messageHashBytes = getUpdateSignersMessageHash(
+                newSigners, newThreshold, await rewardDist.getAddress());
+            const signatures = [
+                await signer1.signMessage(messageHashBytes),
+                await signer2.signMessage(messageHashBytes),
+            ]
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, newThreshold, signatures))
+                .to.be.revertedWith("Invalid new signer");
+        });
+        it("Should revert if invalid new signer(duplicate)", async () => {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer2.address, signer3.address, signer3.address]; // with zero address signer
+            const newThreshold = 2;
+            const messageHashBytes = getUpdateSignersMessageHash(
+                newSigners, newThreshold, await rewardDist.getAddress());
+            const signatures = [
+                await signer1.signMessage(messageHashBytes),
+                await signer2.signMessage(messageHashBytes),
+            ]
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, newThreshold, signatures))
+                .to.be.revertedWith("Duplicate new signer");
+        });
+
+        it("Should succeed with same number signers", async function() {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer2.address, signer3.address, newSigner4.address];
+            const newThreshold = 2;
+            const messageHashBytes = getUpdateSignersMessageHash(
+                newSigners, newThreshold, await rewardDist.getAddress());
+            const signatures = [
+                await signer1.signMessage(messageHashBytes),
+                await signer2.signMessage(messageHashBytes),
+            ]
+
+            const txResp = await rewardDist.connect(networkOwner).updateSigners(
+                newSigners, newThreshold, signatures);
+
+            expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
+            expect(await rewardDist.threshold()).to.equal(newThreshold);
+            expect(await rewardDist.signers(0)).to.equal(signer2);
+            expect(await rewardDist.signers(1)).to.equal(signer3);
+            expect(await rewardDist.signers(2)).to.equal(newSigner4);
+        });
+
+        it("Should succeed with less signers", async function() {
+            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            const newSigners = [signer3.address, newSigner4.address];
+            const newThreshold = 2;
+            const messageHashBytes = getUpdateSignersMessageHash(
+                newSigners, newThreshold, await rewardDist.getAddress());
+            const signatures = [
+                await signer1.signMessage(messageHashBytes),
+                await signer2.signMessage(messageHashBytes),
+            ]
+
+            const txResp = await rewardDist.connect(networkOwner).updateSigners(
+                newSigners, newThreshold, signatures);
+
+            expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
+            expect(await rewardDist.threshold()).to.equal(newThreshold);
+            // expect(await rewardDist.signers(0)).to.equal(signer2);
+            expect(await rewardDist.signers(0)).to.equal(signer3);
+            expect(await rewardDist.signers(1)).to.equal(newSigner4);
+
+            // await expect(rewardDist.signers(2)).to.be.revertedWithPanic(PANIC_CODES.ARRAY_ACCESS_OUT_OF_BOUNDS)
+            await expect(rewardDist.signers(2)).to.revertedWithoutReason();
+        });
     });
 });
