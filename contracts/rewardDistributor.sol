@@ -68,7 +68,8 @@ contract RewardDistributor is ReentrancyGuard {
 
         // we don't need nonces here because the reward root is unique, and it would (for all intents and purposes)
         // be impossible to replay the same reward root with a different total amount
-        // yaiba: why reward root is unique?
+        // yaiba: why reward root is unique? there is chance it's same, for example, for two separated time period, only
+        // one user want to claim reward(on Kwil), and the reward happens to be same number.
         bytes32 messageHash = keccak256(abi.encode(rewardRoot, totalAmount, rootNonce, address(this)));
         address[] memory memSigners = new address[](signatures.length);
         for (uint256 i = 0; i < signatures.length; i++) {
@@ -102,6 +103,7 @@ contract RewardDistributor is ReentrancyGuard {
 
         // get the leaf hash
         // yaiba: seems whoever have access to the original (whole)Merkle tree can claim the reward?
+        // i.e., how one get other proofs?  is there a place/operator has the whole Merkle tree?
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this)))));
         require(!claimedRewards[rewardRoot][leaf], "Reward already claimed");
 
