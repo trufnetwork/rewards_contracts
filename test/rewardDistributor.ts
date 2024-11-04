@@ -1,15 +1,12 @@
 import hre from "hardhat";
-import {
-    time,
-    loadFixture,
-} from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import {BaseContract, Addressable, keccak256, AddressLike, AbiCoder, toBigInt, verifyMessage, getBytes, toQuantity, toUtf8Bytes, formatUnits, parseUnits, Uint8Array} from "ethers";
-import {isZeroAddress, zeroAddress} from "ethereumjs-util";
-import {IERC20} from "../typechain-types";
+import { keccak256, AbiCoder, toBigInt, getBytes, parseUnits } from "ethers";
+import { zeroAddress } from "ethereumjs-util";
+import { IERC20 } from "../typechain-types";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
-import type {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
-import {standardLeafHash} from "@openzeppelin/merkle-tree/dist/hashes";
+import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
 const { PANIC_CODES } = require("@nomicfoundation/hardhat-chai-matchers/panic");
 
 const abiCode = new AbiCoder();
@@ -114,52 +111,52 @@ describe("RewardDistributor", function () {
         return {rewardDist, threshold, posterReward: posterReward1, rewardToken};
     }
 
-    async function deployRewardContractWithLessSignerFixture() {
-        const threshold = 4;
-        const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-        const rewardDist = await RewardDist.connect(networkOwner).deploy(
-            [signer1, signer2, signer3], threshold, posterReward1, rewardToken);
-
-        return {rewardDist, threshold, posterReward: posterReward1, rewardToken};
-    }
-
-    async function deployRewardContractWithDuplicateSignerFixture() {
-        const threshold = 2;
-        const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-        const rewardDist = await RewardDist.connect(networkOwner).deploy(
-            [signer1, signer1, signer3], threshold, posterReward1, rewardToken);
-
-        return {rewardDist, threshold, posterReward: posterReward1, rewardToken};
-    }
-
-    async function deployRewardContractWithEmptySignerFixture() {
-        const threshold = 2;
-        const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-        const rewardDist = await RewardDist.connect(networkOwner).deploy(
-            [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken);
-
-        return {rewardDist, threshold, posterReward: posterReward1, rewardToken};
-    }
-
     describe("Deployment", function(){
         it("Should revert if not enough signer", async function(){
-            await expect(loadFixture(deployRewardContractWithLessSignerFixture)).to.be.revertedWith("Threshold must be less than or equal to the number of signers");
+            const threshold = 4;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+
+            await expect(RewardDist.connect(networkOwner).deploy([signer1, signer2, signer3], threshold, posterReward1, rewardToken))
+                .to.be.revertedWith("Threshold must be less than or equal to the number of signers");
         });
 
-        it("Should revert if threshold is smaller than 0", async function(){
-            // TODO
+        it("Should reject if threshold is less than zero", async () => {
+            const threshold = -2;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+
+            await expect(RewardDist.connect(networkOwner).deploy(
+                [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken)).to.be.rejected;
+        });
+        it("Should revert if threshold is zero", async () => {
+            const threshold = 0;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+
+            await expect(RewardDist.connect(networkOwner).deploy(
+                [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken)).to.be.revertedWith("Threshold must be greater than 0");
+        });
+
+        it("Should revert if invalid signer(empty address)", async function(){
+            const threshold = 2;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+
+            await expect(RewardDist.connect(networkOwner).deploy(
+                [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken)).to.be.revertedWith("Invalid signer");
         })
 
-        it("Should revert if empty signer", async function(){
-            await expect(loadFixture(deployRewardContractWithEmptySignerFixture)).to.be.revertedWith("Invalid signer");
-        })
+        it("Should revert if invalid signer(duplicate)", async function(){
+            const threshold = 2;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
 
-        it("Should revert if duplicate signer", async function(){
-            await expect(loadFixture(deployRewardContractWithDuplicateSignerFixture)).to.be.revertedWith("Duplicate signer");
+            await expect(RewardDist.connect(networkOwner).deploy(
+                [signer1, signer1, signer3], threshold, posterReward1, rewardToken)).to.be.revertedWith("Duplicate signer");
         })
 
         it("Should init correctly", async function(){
             const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+            expect(await rewardDist.token()).changeTokenBalance(rewardToken, rewardDist, 0);
+
+
             expect(await rewardDist.posterReward()).to.equal(posterReward);
             expect(await rewardDist.token()).to.equal(rewardToken);
             expect(await rewardDist.threshold()).to.equal(threshold);
@@ -248,7 +245,6 @@ describe("RewardDistributor", function () {
 
             const _firstTree = genMerkleTree([user1.address, user2.address, user3.address],
                 [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
-            // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
             const rootNonce = await rewardDist.rootNonce();
@@ -307,9 +303,6 @@ describe("RewardDistributor", function () {
         const recipient = user1.address;
         const claimerOldTokenBalance = await rewardToken.balanceOf(rewardClaimer);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
-
-        // const feeData = await hre.ethers.provider.getFeeData();
-        // console.log("fee--", feeData);
 
         const amount = toBigInt(100); // need to be the same as what's in the tree.
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
@@ -635,7 +628,6 @@ describe("RewardDistributor", function () {
 
             expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
             expect(await rewardDist.threshold()).to.equal(newThreshold);
-            // expect(await rewardDist.signers(0)).to.equal(signer2);
             expect(await rewardDist.signers(0)).to.equal(signer3);
             expect(await rewardDist.signers(1)).to.equal(newSigner4);
 

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract RewardDistributor is ReentrancyGuard {
     // isSigner maps all allowed signers to true
@@ -70,22 +70,11 @@ contract RewardDistributor is ReentrancyGuard {
         // be impossible to replay the same reward root with a different total amount
         // yaiba: why reward root is unique?
         bytes32 messageHash = keccak256(abi.encode(rewardRoot, totalAmount, rootNonce, address(this)));
-//        console.logBytes32(rewardRoot);
-//        console.logUint(totalAmount);
-//        console.logUint(rewardNonce);
-//        console.logAddress(address(this));
-//        console.logBytes32(messageHash);
-//        console.logBytes32(MessageHashUtils.toEthSignedMessageHash(messageHash));
-//        console.log("+++++++++++");
         address[] memory memSigners = new address[](signatures.length);
         for (uint256 i = 0; i < signatures.length; i++) {
-//            console.log("pass sig-");
-//            console.logBytes(signatures[i]);
-            // MessageHashUtils.toEthSignedMessageHash to prepend EIP-191 prefix, since client use `personal_sign`
+            // MessageHashUtils.toEthSignedMessageHash to prepend EIP-191 prefix, since client uses `personal_sign`
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
-//            console.logAddress(signer);
             require(isSigner[signer], "Invalid signer");
-//            console.log("pass sig+");
             memSigners[i] = signer;
         }
 
@@ -112,12 +101,8 @@ contract RewardDistributor is ReentrancyGuard {
         require(poster != address(0), "Reward root not posted");
 
         // get the leaf hash
-        // yaiba: seems whoever have access to original Merkle tree can claim the reward?
+        // yaiba: seems whoever have access to the original (whole)Merkle tree can claim the reward?
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this)))));
-//        console.logAddress(recipient);
-//        console.logUint(amount);
-//        console.logAddress(address(this));
-//        console.logBytes32(leaf);
         require(!claimedRewards[rewardRoot][leaf], "Reward already claimed");
 
         // verify the Merkle proof
@@ -153,7 +138,6 @@ contract RewardDistributor is ReentrancyGuard {
     // It must be signed by at least threshold signers.
     function updatePosterReward(uint256 newReward, bytes[] memory signatures) external {
         require(newReward > 0, "Reward must be greater than 0");
-        //require(nonce == rewardNonce, "Invalid nonce"); // seems not necessary, as signatures will fail
         require(signatures.length >= threshold, "Not enough signatures");
 
         bytes32 messageHash = keccak256(abi.encode(newReward, rewardNonce, address(this)));
@@ -180,13 +164,11 @@ contract RewardDistributor is ReentrancyGuard {
 
         bytes32 messageHash = keccak256(abi.encode(newSigners, newThreshold, address(this)));
         for (uint256 i = 0; i < signatures.length; i++) {
-//            address signer = ECDSA.recover(messageHash, signatures[i]);
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
         for (uint256 i = 0; i < signers.length; i++) {
-//            isSigner[signers[i]] = false; // maybe use delete isSigner[signers[i]] ?
             delete isSigner[signers[i]];
         }
 
