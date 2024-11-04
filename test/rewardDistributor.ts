@@ -237,7 +237,7 @@ describe("RewardDistributor", function () {
             expect(totalRewardBalance).to.equal(parseUnits("1000", "ether"));
 
             await expect(rewardDist.connect(rewardPoster).postRewardRoot(emptyRewardRoot, parseUnits("1001", "ether"), ["0x00", "0x11"]))
-                .to.be.revertedWith("Reward amount exceeds contract balance");
+                .to.be.revertedWith("Insufficient contract balance for reward amount");
         });
 
         it("Should revert if any signature is not signed by allowed signer", async function(){
@@ -345,8 +345,7 @@ describe("RewardDistributor", function () {
         });
 
         it("Should revert if reward already claimed", async function(){
-            const {rewardDist, rewardRoot, proof, leaf, recipient, amount, txResp,
-                paid, claimerOldBalance, posterOldBalance, oldTotalPostedReward} = await loadFixture(claimUser1FirstRewardFixture);
+            const {rewardDist, rewardRoot, proof, leaf, recipient, amount, paid} = await loadFixture(claimUser1FirstRewardFixture);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 recipient, amount, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
@@ -427,7 +426,7 @@ describe("RewardDistributor", function () {
     })
 
     async function updatePosterRewardFixture() {
-        const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+        const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
         const nonce = await rewardDist.rewardNonce();
         const rewardAmount = posterReward2;
@@ -444,19 +443,19 @@ describe("RewardDistributor", function () {
 
     describe("Update poster reward", () => {
         it("Should revert if reward is less equal than 0", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             await expect(rewardDist.updatePosterReward(0, [])).to.be.revertedWith("Reward must be greater than 0");
         });
 
         it("Should revert if not enough signature", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             await expect(rewardDist.updatePosterReward(11, [])).to.be.revertedWith("Not enough signatures");
         });
 
         it("Should revert if invalid signer(wrong message)", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const nonce = await rewardDist.rewardNonce();
             const rewardAmount = posterReward2;
@@ -471,7 +470,7 @@ describe("RewardDistributor", function () {
         });
 
         it("Should revert if invalid signer(unknown signer)", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const nonce = await rewardDist.rewardNonce();
             const rewardAmount = posterReward2;
@@ -496,7 +495,7 @@ describe("RewardDistributor", function () {
 
     describe("Update signers", function() {
         it("Should revert if not enough signers", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
 
@@ -504,14 +503,14 @@ describe("RewardDistributor", function () {
                 .to.be.revertedWith("Threshold must be less than or equal to the number of signers");
         });
         it("Should reject if threshold is less than zero", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
 
             await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, -2, ["0x00"])).to.be.rejected;
         });
         it("Should revert if threshold is zero", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
 
@@ -519,7 +518,7 @@ describe("RewardDistributor", function () {
                 .to.be.revertedWith("Threshold must be greater than 0");
         });
         it("Should revert if not enough signatures", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
 
@@ -527,7 +526,7 @@ describe("RewardDistributor", function () {
                 .to.be.revertedWith("Not enough signatures");
         });
         it("Should revert if invalid signer(wrong message)", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
@@ -544,7 +543,7 @@ describe("RewardDistributor", function () {
                 .to.be.revertedWith("Invalid signer");
         });
         it("Should revert if invalid signer(unknown signer)", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
@@ -559,7 +558,7 @@ describe("RewardDistributor", function () {
                 .to.be.revertedWith("Invalid signer");
         });
         it("Should revert if invalid new signer(zero address)", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer2.address, signer3.address, zeroAddress()]; // with zero address signer
             const newThreshold = 2;
@@ -574,7 +573,7 @@ describe("RewardDistributor", function () {
                 .to.be.revertedWith("Invalid new signer");
         });
         it("Should revert if invalid new signer(duplicate)", async () => {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer2.address, signer3.address, signer3.address]; // with zero address signer
             const newThreshold = 2;
@@ -590,7 +589,7 @@ describe("RewardDistributor", function () {
         });
 
         it("Should succeed with same number signers", async function() {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer2.address, signer3.address, newSigner4.address];
             const newThreshold = 2;
@@ -612,7 +611,7 @@ describe("RewardDistributor", function () {
         });
 
         it("Should succeed with less signers", async function() {
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
@@ -633,6 +632,24 @@ describe("RewardDistributor", function () {
 
             // await expect(rewardDist.signers(2)).to.be.revertedWithPanic(PANIC_CODES.ARRAY_ACCESS_OUT_OF_BOUNDS)
             await expect(rewardDist.signers(2)).to.revertedWithoutReason();
+        });
+    });
+
+    describe("Transfer eth", function (){
+        it("Should revert if transfer eth with msg.data", async function() {
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
+            await expect(unknownSigner.sendTransaction({
+                to: rewardDist,
+                value: parseUnits("1", "ether"),
+                data: "0x00",
+            })).to.revertedWith("Ether transfers not allowed");
+        });
+        it("Should revert if transfer eth without msg.data", async function() {
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
+            await expect(unknownSigner.sendTransaction({
+                to: rewardDist,
+                value: parseUnits("1", "ether"),
+            })).to.revertedWith("Ether transfers not allowed");
         });
     });
 });

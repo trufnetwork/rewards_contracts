@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+//import "hardhat/console.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-//import "hardhat/console.sol";
 
 contract RewardDistributor is ReentrancyGuard {
     // isSigner maps all allowed signers to true
     mapping(address => bool) private isSigner;
+
     // signers is the list of allowed signers
     address[] public signers;
-    
     // threshold is the minimum number of signatures required to execute a transaction
     uint8 public threshold;
     // rewardRoots maps a reward hash to the address that posted the root
@@ -30,7 +30,6 @@ contract RewardDistributor is ReentrancyGuard {
     // It is incremented each time the reward root is updated
     // to prevent replay attacks and to ensure that the reward root is unique.
     uint256 public rootNonce;
-
     // token is the address of the ERC20 token used for rewards
     IERC20 public token;
     // totalPostedRewards is the total amount of rewards posted to the contract.
@@ -64,7 +63,7 @@ contract RewardDistributor is ReentrancyGuard {
         require(totalAmount > 0, "Total amount must be greater than 0");
         require(signatures.length >= threshold, "Not enough signatures");
         require(rewardRoots[rewardRoot] == address(0), "Reward root already posted");
-        require(token.balanceOf(address(this)) >= totalPostedRewards + totalAmount, "Reward amount exceeds contract balance");
+        require(token.balanceOf(address(this)) >= totalPostedRewards + totalAmount, "Insufficient contract balance for reward amount");
 
         // we don't need nonces here because the reward root is unique, and it would (for all intents and purposes)
         // be impossible to replay the same reward root with a different total amount
@@ -130,9 +129,9 @@ contract RewardDistributor is ReentrancyGuard {
         // claim the reward
         claimedRewards[rewardRoot][leaf] = true;
         totalPostedRewards -= amount;
+
         // yaiba: send token to msg.sender, allow claim as long as you have the proof
         require(token.transfer(msg.sender, amount), "Token transfer failed");
-
         emit RewardClaimed(recipient, msg.sender, amount);
     }
 
@@ -191,5 +190,15 @@ contract RewardDistributor is ReentrancyGuard {
     // and have not been posted in a reward root.
     function unpostedRewards() public view returns (uint256) {
         return token.balanceOf(address(this)) - totalPostedRewards;
+    }
+
+    // Fallback function to prevent accidental Ether transfers
+    receive() external payable {
+        revert("Ether transfers not allowed");
+    }
+
+    // Fallback function to prevent accidental Ether transfers
+    fallback() external payable {
+        revert("Ether transfers not allowed");
     }
 }
