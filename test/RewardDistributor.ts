@@ -397,6 +397,7 @@ describe("RewardDistributor", function () {
             const txReceipt = await txResp.wait();
 
             expect(txResp).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, rewardClaimer, amount);
+            // @ts-ignore
             expect(await hre.ethers.provider.getBalance(rewardClaimer.address))
                 .to.equal(claimerOldBalance - paid - txReceipt.fee);
             expect(await hre.ethers.provider.getBalance(rewardPoster.address))
@@ -414,6 +415,7 @@ describe("RewardDistributor", function () {
             const txReceipt = await txResp.wait();
 
             expect(txResp).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, rewardClaimer, amount);
+            // @ts-ignore
             expect(await hre.ethers.provider.getBalance(rewardClaimer.address))
                 .to.equal(claimerOldBalance - paid2x/toBigInt(2) - txReceipt.fee);
             expect(await hre.ethers.provider.getBalance(rewardPoster.address))
