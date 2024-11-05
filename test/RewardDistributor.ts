@@ -40,7 +40,6 @@ function genRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonc
     const encoding = ["bytes32", "uint256", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
         [rewardRoot, rewardAmount, rootNonce, contractAddress]);
-    console.log("encodedMsg----:", encodedMsg);
     const messageHashBytes = getBytes(keccak256(encodedMsg))
     // const messageHash = keccak256(encodedMsg);
     // expect(messageHash).to.equal(toQuantity(messageHashBytes));
