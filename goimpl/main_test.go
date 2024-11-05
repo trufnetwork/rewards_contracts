@@ -75,13 +75,13 @@ func TestMessageHash(t *testing.T) {
 		assert.Equal(t, hexutil.Encode(h), "0xc49ce1c0fc2fb8cbdce3bceabff54675091caeda76cdee9ce0a139bd79cd8c02")
 	})
 
-	t.Run("update reward message hash", func(t *testing.T) {
-		h, err := genUpdateRewardMessageHash("100", "2", contract)
+	t.Run("update poster fee message hash", func(t *testing.T) {
+		h, err := genUpdatePosterFeeMessageHash("100", "2", contract)
 		require.NoError(t, err)
 		assert.Equal(t, hexutil.Encode(h), "0x3b8eb0e42096e2ef3e56d9b88604477f25dc2102073f5b4e1967044150d8bec4")
 	})
 
-	t.Run("update signer message hash", func(t *testing.T) {
+	t.Run("update signers message hash", func(t *testing.T) {
 		h, err := genUpdateSignerMessageHash([]string{addr2, addr3, addr4}, "2", contract)
 		require.NoError(t, err)
 		assert.Equal(t, hexutil.Encode(h), "0xd2f344153ec2c1720055d2df687b64fa163db8d4d06b8f6ed6f2ab7b03c03339")
