@@ -7,8 +7,12 @@ import { IERC20 } from "../typechain-types";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
-const { PANIC_CODES } = require("@nomicfoundation/hardhat-chai-matchers/panic");
+import {PANIC_CODES} from "@nomicfoundation/hardhat-chai-matchers/panic";
+
 import fs from "fs";
+
+import {MerkleTree} from "merkletreejs";
+
 
 const abiCode = new AbiCoder();
 
@@ -36,6 +40,12 @@ function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: st
     return {proof: [], leaf: ""};
 }
 
+function genRewardLeaf(recipient: string, amount: string, thisAddress: string) {
+    const encoding =  ["address", "uint256", "address"];
+    const encodedLeaf = abiCode.encode(encoding, [recipient, amount, thisAddress]);
+    return getBytes(keccak256(encodedLeaf))
+}
+
 function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonce: bigint, contractAddress: string): Uint8Array {
     const encoding = ["bytes32", "uint256", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
@@ -61,6 +71,31 @@ function genUpdateSignersMessageHash(signers: string[], threshold: number, rewar
     return getBytes(keccak256(encodedMsg))
 }
 
+// mtjs is a demonstration using merkletreejs to generate OpenZeppelin compatible tree
+function mtjs(): string {
+    const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+    const addr2 = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+    const addr3 = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
+    const addr4 = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+    const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
+    const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
+
+    const l1 = genRewardLeaf(addr1, "100", contract);
+    // console.log("----", keccak256(l1))
+    const l2 = genRewardLeaf(addr2, "200", contract);
+    // console.log("----", keccak256(l2))
+    const l3 = genRewardLeaf(addr3, "100", contract);
+    // console.log("----", keccak256(l3))
+
+    const leaves = [l1,l2,l3];
+    // the OpenZeppelin Standard Merkle Tree uses an opinionated double leaf hashing algorithm
+    // and the odd leaf is unchanged and be used for next pairing.
+    // So any Go/JS library has similar implementation should be compatible.
+    const tree = new MerkleTree(leaves, keccak256, { hashLeaves: true, sortLeaves: true, sortPairs: true})
+    // console.log("tree--", tree.toString()) // show the tree structure
+    const root = tree.getRoot().toString('hex')
+    return root
+}
 
 describe("MerkleTree", function () {
     const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
@@ -70,10 +105,24 @@ describe("MerkleTree", function () {
     const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
     const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
 
+    it("Should generate a merkle tree leaf", async () => {
+        const l1 = genRewardLeaf(addr1, "100", contract);
+        expect(toQuantity(l1)).to.equal("0x65fef5c01e7c257346e6e8f73387b7629868a2d6b7c33a797bf66221955b1243");
+
+        const l2 = genRewardLeaf(addr2, "200", contract);
+        expect(toQuantity(l2)).to.equal("0xeead0f527d6a0b128921e7ba9ffb2cdaa1168bda76cd00e566a706ed5771ac28");
+
+        const l3 = genRewardLeaf(addr3, "100", contract);
+        expect(toQuantity(l3)).to.equal("0xfd9ed9c87a7232f483697c9fe33cc9c52f534abfb4290002a58f650b6e360e1b");
+
+        expect(mtjs()).to.equal("e4b867aad8e2ed878496a1d11f020ec3e2cb4470e552bbaeb5d3cb8b633b7d60");
+    })
+
     it("Should generate a merkle tree with 3 leafs", async () => {
         const t = genRewardMerkleTree([addr1, addr2, addr3],
             [100, 200, 100], contract);
         expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/3leafs_tree.json").toString());
+        expect(t.tree.root).to.equal("0xe4b867aad8e2ed878496a1d11f020ec3e2cb4470e552bbaeb5d3cb8b633b7d60"); // same as mtjs output
 
         const p = getMTreeProof(t.tree, addr3)
         expect(p.proof).to.deep.equal(['0x2f87038f22c4d34c3b4a790a5feeabe33502a6ce9db946d119e9f02ee2c616f9']);

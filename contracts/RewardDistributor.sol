@@ -103,6 +103,7 @@ contract RewardDistributor is ReentrancyGuard {
         // get the leaf hash
         // yaiba: seems whoever have access to the original (whole)Merkle tree can claim the reward?
         // i.e., how one get other proofs?  is there a place/operator has the whole Merkle tree?
+        // maybe only allow `recipient` to claim reward???? i.e. use msg.sender as recipient, we can 100% sure it's the right person
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this)))));
         require(!claimedRewards[rewardRoot][leaf], "Reward already claimed");
 
