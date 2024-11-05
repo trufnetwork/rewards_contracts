@@ -36,7 +36,7 @@ function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: st
     return {proof: [], leaf: ""};
 }
 
-function genRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonce: bigint, contractAddress: string): Uint8Array {
+function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonce: bigint, contractAddress: string): Uint8Array {
     const encoding = ["bytes32", "uint256", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
         [rewardRoot, rewardAmount, rootNonce, contractAddress]);
@@ -114,8 +114,8 @@ describe("MessageHash", () => {
     const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
     const root = "0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb";
 
-    it("Should have expect reward message hash", async () => {
-        expect(toQuantity(genRewardMessageHash(root, toBigInt(100), toBigInt(2), contract)))
+    it("Should have expect post reward message hash", async () => {
+        expect(toQuantity(genPostRewardMessageHash(root, toBigInt(100), toBigInt(2), contract)))
             .to.equal("0xc49ce1c0fc2fb8cbdce3bceabff54675091caeda76cdee9ce0a139bd79cd8c02");
     })
     it("Should have expect update reward message hash", async () => {
@@ -263,7 +263,7 @@ describe("RewardDistributor", function () {
         // reward2 = {tree: _secondTree.tree, root: _secondTree.tree.root, amount: _secondTree.amount};
 
         const rootNonce = await rewardDist.rootNonce();
-        const messageHashBytes = genRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
+        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
@@ -320,7 +320,7 @@ describe("RewardDistributor", function () {
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
             const rootNonce = await rewardDist.rootNonce();
-            const messageHashBytes = genRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
@@ -341,7 +341,7 @@ describe("RewardDistributor", function () {
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
             const rootNonce = await rewardDist.rootNonce();
-            const messageHashBytes = genRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);

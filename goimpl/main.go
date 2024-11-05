@@ -34,7 +34,7 @@ func genRewardMerkleTree(users []string, amounts []string, contractAddress strin
 	return string(dump), nil
 }
 
-func genRewardMessageHash(rewardRootHash string, rewardAmount string, rootNonce string, contractAddress string) ([]byte, error) {
+func genPostRewardMessageHash(rewardRootHash string, rewardAmount string, rootNonce string, contractAddress string) ([]byte, error) {
 	encoding := []string{"bytes32", "uint256", "uint256", "address"}
 	var b32 [32]byte
 	copy(b32[:], smt.SolBytes(rewardRootHash))

@@ -69,8 +69,8 @@ func TestMessageHash(t *testing.T) {
 	// root hash; NOTE: no 0x prefix
 	const root = "2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb"
 
-	t.Run("reward message hash", func(t *testing.T) {
-		h, err := genRewardMessageHash(root, "100", "2", contract)
+	t.Run("post reward message hash", func(t *testing.T) {
+		h, err := genPostRewardMessageHash(root, "100", "2", contract)
 		require.NoError(t, err)
 		assert.Equal(t, hexutil.Encode(h), "0xc49ce1c0fc2fb8cbdce3bceabff54675091caeda76cdee9ce0a139bd79cd8c02")
 	})
