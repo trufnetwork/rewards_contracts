@@ -1,44 +1,24 @@
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import { keccak256, AbiCoder, toBigInt, getBytes, parseUnits } from "ethers";
+import { keccak256, AbiCoder, toBigInt, toQuantity, getBytes, parseUnits } from "ethers";
 import { zeroAddress } from "ethereumjs-util";
 import { IERC20 } from "../typechain-types";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
 const { PANIC_CODES } = require("@nomicfoundation/hardhat-chai-matchers/panic");
+import fs from "fs";
 
 const abiCode = new AbiCoder();
 
-// generate a merkle tree with each leaf as `(recipient, amount, contract_address)`
-function genMerkleTree(users: string[], amounts: number[], rewardContract: string): {tree: StandardMerkleTree<any>, amount: bigint} {
+// generate a reward merkle tree with each leaf as `(recipient, amount, contract_address)`
+function genRewardMerkleTree(users: string[], amounts: number[], rewardContract: string): {tree: StandardMerkleTree<any>, amount: bigint} {
+    const leafEncoding =  ["address", "uint256", "address"];
     const values: any[][] = users.map((user, index): any[] => [user, amounts[index].toString(), rewardContract]);
-    const tree = StandardMerkleTree.of(values, ["address", "uint256", "address"]);
+    const tree = StandardMerkleTree.of(values, leafEncoding);
     const total: number = amounts.reduce((sum, current) => sum + current, 0);
     return {tree, amount: toBigInt(total)};
-}
-
-function genRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonce: bigint, contractAddress: string): Uint8Array {
-    const encodedMsg = abiCode.encode(["bytes32","uint256", "uint256", "address"],
-        [rewardRoot, rewardAmount, rootNonce, contractAddress]);
-    const messageHashBytes = getBytes(keccak256(encodedMsg))
-    // const messageHash = keccak256(encodedMsg);
-    // expect(messageHash).to.equal(toQuantity(messageHashBytes));
-
-    return messageHashBytes
-}
-
-function genUpdateRewardMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
-    const encodedMsg = abiCode.encode(["uint256", "uint256", "address"],
-        [rewardAmount, nonce, contractAddress]);
-    return getBytes(keccak256(encodedMsg))
-}
-
-function getUpdateSignersMessageHash(signers: string[], threshold: number, rewardContract: string): Uint8Array {
-    const encodedMsg = abiCode.encode(["address[]", "uint8", "address"],
-        [signers, threshold, rewardContract]);
-    return getBytes(keccak256(encodedMsg))
 }
 
 function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: string[], leaf: string} {
@@ -55,6 +35,99 @@ function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: st
 
     return {proof: [], leaf: ""};
 }
+
+function genRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonce: bigint, contractAddress: string): Uint8Array {
+    const encoding = ["bytes32", "uint256", "uint256", "address"];
+    const encodedMsg = abiCode.encode(encoding,
+        [rewardRoot, rewardAmount, rootNonce, contractAddress]);
+    console.log("encodedMsg----:", encodedMsg);
+    const messageHashBytes = getBytes(keccak256(encodedMsg))
+    // const messageHash = keccak256(encodedMsg);
+    // expect(messageHash).to.equal(toQuantity(messageHashBytes));
+
+    return messageHashBytes
+}
+
+function genUpdateRewardMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
+    const encoding = ["uint256", "uint256", "address"];
+    const encodedMsg = abiCode.encode(encoding,
+        [rewardAmount, nonce, contractAddress]);
+    return getBytes(keccak256(encodedMsg))
+}
+
+function genUpdateSignersMessageHash(signers: string[], threshold: number, rewardContract: string): Uint8Array {
+    const encoding = ["address[]", "uint8", "address"];
+    const encodedMsg = abiCode.encode(encoding,
+        [signers, threshold, rewardContract]);
+    return getBytes(keccak256(encodedMsg))
+}
+
+
+describe("MerkleTree", function () {
+    const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+    const addr2 = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+    const addr3 = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
+    const addr4 = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+    const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
+    const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
+
+    it("Should generate a merkle tree with 3 leafs", async () => {
+        const t = genRewardMerkleTree([addr1, addr2, addr3],
+            [100, 200, 100], contract);
+        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/3leafs_tree.json").toString());
+
+        const p = getMTreeProof(t.tree, addr3)
+        expect(p.proof).to.deep.equal(['0x2f87038f22c4d34c3b4a790a5feeabe33502a6ce9db946d119e9f02ee2c616f9']);
+        expect(p.leaf).to.equal('0xe8e4b2dfdc4cd3b98cb2b8a0562554fb20fa55b0a56051a4477a32317de956eb');
+    });
+    it("Should generate a merkle tree with 4 leafs", async () => {
+        const t = genRewardMerkleTree([addr1, addr2, addr3, addr4],
+            [100, 200, 100, 200], contract);
+        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/4leafs_tree.json").toString());
+
+        const p = getMTreeProof(t.tree, addr3)
+        expect(p.proof).to.deep.equal([
+            '0x843c5da35b6dec0d96b1667418b89fb8650c0c011fe4622b1304b55bfe1b5d9d',
+            '0x195aca1e2ee1f09f900f6174cb3ea54d325f29ad05919a4e4416e1c0558a44d6'
+            ]);
+        expect(p.leaf).to.equal('0xe8e4b2dfdc4cd3b98cb2b8a0562554fb20fa55b0a56051a4477a32317de956eb');
+    });
+    it("Should generate a merkle tree with 5 leafs", async () => {
+        const t = genRewardMerkleTree([addr1, addr2, addr3, addr4, addr5],
+            [100, 200, 100, 200, 100], contract);
+        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/5leafs_tree.json").toString());
+
+        const p = getMTreeProof(t.tree, addr3)
+        expect(p.proof).to.deep.equal([
+            '0x195aca1e2ee1f09f900f6174cb3ea54d325f29ad05919a4e4416e1c0558a44d6',
+            '0x038afff99cec2e245a14b191c62ff961b5d4b288634e01b64fd0af40609c0efd'
+        ]);
+        expect(p.leaf).to.equal('0xe8e4b2dfdc4cd3b98cb2b8a0562554fb20fa55b0a56051a4477a32317de956eb');
+    });
+})
+
+describe("MessageHash", () => {
+    const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+    const addr2 = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+    const addr3 = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
+    const addr4 = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
+    const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
+    const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
+    const root = "0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb";
+
+    it("Should have expect reward message hash", async () => {
+        expect(toQuantity(genRewardMessageHash(root, toBigInt(100), toBigInt(2), contract)))
+            .to.equal("0xc49ce1c0fc2fb8cbdce3bceabff54675091caeda76cdee9ce0a139bd79cd8c02");
+    })
+    it("Should have expect update reward message hash", async () => {
+        expect(toQuantity(genUpdateRewardMessageHash(toBigInt(100), toBigInt(2), contract)))
+            .to.equal("0x3b8eb0e42096e2ef3e56d9b88604477f25dc2102073f5b4e1967044150d8bec4");
+    })
+    it("Should have expect update signer message hash", async () => {
+        expect(toQuantity(genUpdateSignersMessageHash([addr2, addr3, addr4], 2, contract)))
+            .to.equal("0xd2f344153ec2c1720055d2df687b64fa163db8d4d06b8f6ed6f2ab7b03c03339");
+    })
+});
 
 describe("RewardDistributor", function () {
     // setups
@@ -85,13 +158,13 @@ describe("RewardDistributor", function () {
         [networkOwner, signer1, signer2, signer3, newSigner4, rewardPoster, user1, user2, user3, rewardClaimer, unknownSigner] = await hre.ethers.getSigners();
 
         // // generate first reward merkle tree
-        // const _firstTree = genMerkleTree([user1.address, user2.address, user3.address],
+        // const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
         //     [100,200,100]); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
         // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
         // reward1 = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
         //
         // // generate second reward merkle tree
-        // const _secondTree = genMerkleTree([user1.address, user2.address, user3.address],
+        // const _secondTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
         //     [200,200,200]); //
         // console.log('Second Merkle tree:', JSON.stringify(_secondTree.tree.dump()), _secondTree.tree.root);
         // reward2 = {tree: _secondTree.tree, root: _secondTree.tree.root, amount: _secondTree.amount};
@@ -179,13 +252,13 @@ describe("RewardDistributor", function () {
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
 
         // generate first reward merkle tree
-        const _firstTree = genMerkleTree([user1.address, user2.address, user3.address],
+        const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
             [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
         // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
         // // generate second reward merkle tree
-        // const _secondTree = genMerkleTree([user1.address, user2.address, user3.address],
+        // const _secondTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
         //     [200,200,200], await rewardDist.getAddress()); // 0xecc36c69668c76fa0a17a6034e6570ad86c1715cbcb11b2337728ee5732d4be8
         // console.log('Second Merkle tree:', JSON.stringify(_secondTree.tree.dump()), _secondTree.tree.root);
         // reward2 = {tree: _secondTree.tree, root: _secondTree.tree.root, amount: _secondTree.amount};
@@ -243,7 +316,7 @@ describe("RewardDistributor", function () {
         it("Should revert if any signature is not signed by allowed signer", async function(){
             const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
 
-            const _firstTree = genMerkleTree([user1.address, user2.address, user3.address],
+            const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
                 [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
@@ -263,7 +336,7 @@ describe("RewardDistributor", function () {
         it("Should revert if any signature comes from same signer", async function(){
             const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
 
-            const _firstTree = genMerkleTree([user1.address, user2.address, user3.address],
+            const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
                 [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
             // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
@@ -532,7 +605,7 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
-            const messageHashBytes = getUpdateSignersMessageHash(
+            const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners,
                 1, // not the same threshold
                 await rewardDist.getAddress());
@@ -549,7 +622,7 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
-            const messageHashBytes = getUpdateSignersMessageHash(
+            const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners, newThreshold, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
@@ -564,7 +637,7 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer2.address, signer3.address, zeroAddress()]; // with zero address signer
             const newThreshold = 2;
-            const messageHashBytes = getUpdateSignersMessageHash(
+            const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners, newThreshold, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
@@ -579,7 +652,7 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer2.address, signer3.address, signer3.address]; // with zero address signer
             const newThreshold = 2;
-            const messageHashBytes = getUpdateSignersMessageHash(
+            const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners, newThreshold, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
@@ -595,7 +668,7 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer2.address, signer3.address, newSigner4.address];
             const newThreshold = 2;
-            const messageHashBytes = getUpdateSignersMessageHash(
+            const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners, newThreshold, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
@@ -617,7 +690,7 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
-            const messageHashBytes = getUpdateSignersMessageHash(
+            const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners, newThreshold, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
