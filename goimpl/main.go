@@ -46,7 +46,7 @@ func genPostRewardMessageHash(rewardRootHash string, rewardAmount string, rootNo
 	return smt.Keccak256(data)
 }
 
-func genUpdateRewardMessageHash(rewardAmount string, rootNonce string, contractAddress string) ([]byte, error) {
+func genUpdatePosterFeeMessageHash(rewardAmount string, rootNonce string, contractAddress string) ([]byte, error) {
 	encoding := []string{"uint256", "uint256", "address"}
 	data, err := smt.AbiPack(encoding, smt.SolNumber(rewardAmount), smt.SolNumber(rootNonce), common.HexToAddress(contractAddress))
 	if err != nil {

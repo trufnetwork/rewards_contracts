@@ -46,10 +46,10 @@ function genRewardLeaf(recipient: string, amount: string, thisAddress: string) {
     return getBytes(keccak256(encodedLeaf))
 }
 
-function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, rootNonce: bigint, contractAddress: string): Uint8Array {
+function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, posterFeeNonce: bigint, contractAddress: string): Uint8Array {
     const encoding = ["bytes32", "uint256", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
-        [rewardRoot, rewardAmount, rootNonce, contractAddress]);
+        [rewardRoot, rewardAmount, posterFeeNonce, contractAddress]);
     const messageHashBytes = getBytes(keccak256(encodedMsg))
     // const messageHash = keccak256(encodedMsg);
     // expect(messageHash).to.equal(toQuantity(messageHashBytes));
@@ -57,7 +57,7 @@ function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, root
     return messageHashBytes
 }
 
-function genUpdateRewardMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
+function genUpdatePosterFeeMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
     const encoding = ["uint256", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
         [rewardAmount, nonce, contractAddress]);
@@ -167,11 +167,11 @@ describe("MessageHash", () => {
         expect(toQuantity(genPostRewardMessageHash(root, toBigInt(100), toBigInt(2), contract)))
             .to.equal("0xc49ce1c0fc2fb8cbdce3bceabff54675091caeda76cdee9ce0a139bd79cd8c02");
     })
-    it("Should have expect update reward message hash", async () => {
-        expect(toQuantity(genUpdateRewardMessageHash(toBigInt(100), toBigInt(2), contract)))
+    it("Should have expect update poster fee message hash", async () => {
+        expect(toQuantity(genUpdatePosterFeeMessageHash(toBigInt(100), toBigInt(2), contract)))
             .to.equal("0x3b8eb0e42096e2ef3e56d9b88604477f25dc2102073f5b4e1967044150d8bec4");
     })
-    it("Should have expect update signer message hash", async () => {
+    it("Should have expect update signers message hash", async () => {
         expect(toQuantity(genUpdateSignersMessageHash([addr2, addr3, addr4], 2, contract)))
             .to.equal("0xd2f344153ec2c1720055d2df687b64fa163db8d4d06b8f6ed6f2ab7b03c03339");
     })
@@ -181,8 +181,8 @@ describe("RewardDistributor", function () {
     // setups
     const emptyRewardRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
     const rewardContractAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
-    const posterReward1 = parseUnits("1000000", "gwei")
-    const posterReward2 = parseUnits("2000000", "gwei")
+    const posterFee1 = parseUnits("1000000", "gwei")
+    const posterFee2 = parseUnits("2000000", "gwei")
 
     let rewardToken: IERC20;
 
@@ -205,18 +205,6 @@ describe("RewardDistributor", function () {
     before(async function () {
         [networkOwner, signer1, signer2, signer3, newSigner4, rewardPoster, user1, user2, user3, rewardClaimer, unknownSigner] = await hre.ethers.getSigners();
 
-        // // generate first reward merkle tree
-        // const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-        //     [100,200,100]); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
-        // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
-        // reward1 = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
-        //
-        // // generate second reward merkle tree
-        // const _secondTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-        //     [200,200,200]); //
-        // console.log('Second Merkle tree:', JSON.stringify(_secondTree.tree.dump()), _secondTree.tree.root);
-        // reward2 = {tree: _secondTree.tree, root: _secondTree.tree.root, amount: _secondTree.amount};
-
         const RewardToken = await hre.ethers.getContractFactory("KwilMockToken");
         rewardToken = await RewardToken.connect(networkOwner).deploy(networkOwner);
     });
@@ -227,9 +215,9 @@ describe("RewardDistributor", function () {
         const threshold = 2;
         const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
         const rewardDist = await RewardDist.connect(networkOwner).deploy(
-            [signer1, signer2, signer3], threshold, posterReward1, rewardToken);
+            [signer1, signer2, signer3], threshold, posterFee1, rewardToken);
 
-        return {rewardDist, threshold, posterReward: posterReward1, rewardToken};
+        return {rewardDist, threshold, posterFee: posterFee1, rewardToken};
     }
 
     describe("Deployment", function(){
@@ -237,7 +225,7 @@ describe("RewardDistributor", function () {
             const threshold = 4;
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
 
-            await expect(RewardDist.connect(networkOwner).deploy([signer1, signer2, signer3], threshold, posterReward1, rewardToken))
+            await expect(RewardDist.connect(networkOwner).deploy([signer1, signer2, signer3], threshold, posterFee1, rewardToken))
                 .to.be.revertedWith("Threshold must be less than or equal to the number of signers");
         });
 
@@ -246,14 +234,14 @@ describe("RewardDistributor", function () {
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
 
             await expect(RewardDist.connect(networkOwner).deploy(
-                [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken)).to.be.rejected;
+                [signer1, zeroAddress(), signer3], threshold, posterFee1, rewardToken)).to.be.rejected;
         });
         it("Should revert if threshold is zero", async () => {
             const threshold = 0;
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
 
             await expect(RewardDist.connect(networkOwner).deploy(
-                [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken)).to.be.revertedWith("Threshold must be greater than 0");
+                [signer1, zeroAddress(), signer3], threshold, posterFee1, rewardToken)).to.be.revertedWith("Threshold must be greater than 0");
         });
 
         it("Should revert if invalid signer(empty address)", async function(){
@@ -261,7 +249,7 @@ describe("RewardDistributor", function () {
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
 
             await expect(RewardDist.connect(networkOwner).deploy(
-                [signer1, zeroAddress(), signer3], threshold, posterReward1, rewardToken)).to.be.revertedWith("Invalid signer");
+                [signer1, zeroAddress(), signer3], threshold, posterFee1, rewardToken)).to.be.revertedWith("Invalid signer");
         })
 
         it("Should revert if invalid signer(duplicate)", async function(){
@@ -269,17 +257,17 @@ describe("RewardDistributor", function () {
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
 
             await expect(RewardDist.connect(networkOwner).deploy(
-                [signer1, signer1, signer3], threshold, posterReward1, rewardToken)).to.be.revertedWith("Duplicate signer");
+                [signer1, signer1, signer3], threshold, posterFee1, rewardToken)).to.be.revertedWith("Duplicate signer");
         })
 
         it("Should init correctly", async function(){
-            const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+            const {rewardDist, threshold, posterFee, rewardToken} = await loadFixture(deployRewardContractFixture);
 
-            expect(await rewardDist.token()).changeTokenBalance(rewardToken, rewardDist, 0);
+            expect(await rewardDist.rewardToken()).changeTokenBalance(rewardToken, rewardDist, 0);
 
 
-            expect(await rewardDist.posterReward()).to.equal(posterReward);
-            expect(await rewardDist.token()).to.equal(rewardToken);
+            expect(await rewardDist.posterFee()).to.equal(posterFee);
+            expect(await rewardDist.rewardToken()).to.equal(rewardToken);
             expect(await rewardDist.threshold()).to.equal(threshold);
             expect(await rewardDist.signers(0)).to.equal(signer1);
             expect(await rewardDist.signers(1)).to.equal(signer2);
@@ -288,9 +276,9 @@ describe("RewardDistributor", function () {
     });
 
     async function deployRewardContractAndFund1000TokenFixture() {
-        const {rewardDist, threshold, posterReward, rewardToken} = await loadFixture(deployRewardContractFixture);
+        const {rewardDist, threshold, posterFee, rewardToken} = await loadFixture(deployRewardContractFixture);
         await rewardToken.transfer((await rewardDist.getAddress()), parseUnits("1000", "ether"));
-        return {rewardDist, threshold, posterReward, rewardToken};
+        return {rewardDist, threshold, posterFee, rewardToken};
     }
 
     // post the very first reward, with total 400 on three users
@@ -302,29 +290,40 @@ describe("RewardDistributor", function () {
         // generate first reward merkle tree
         const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
             [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
-        // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-        // // generate second reward merkle tree
-        // const _secondTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-        //     [200,200,200], await rewardDist.getAddress()); // 0xecc36c69668c76fa0a17a6034e6570ad86c1715cbcb11b2337728ee5732d4be8
-        // console.log('Second Merkle tree:', JSON.stringify(_secondTree.tree.dump()), _secondTree.tree.root);
-        // reward2 = {tree: _secondTree.tree, root: _secondTree.tree.root, amount: _secondTree.amount};
-
-        const rootNonce = await rewardDist.rootNonce();
-        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
+        const posterFeeNonce = await rewardDist.posterFeeNonce();
+        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
-
         const signature3 = await signer3.signMessage(messageHashBytes);
-        // const recoveredAddress1 = verifyMessage(messageHashBytes, signature1);
-        // const recoveredAddress2 = verifyMessage(messageHashBytes, signature2);
-        // const recoveredAddress3 = verifyMessage(messageHashBytes, signature3);
-        // console.log("----+", signature1, signer1.address.toLowerCase(), recoveredAddress1.toLowerCase());
-        // console.log("----+", signature2, signer2.address.toLowerCase(), recoveredAddress2.toLowerCase());
-        // console.log("----+", signature3, signer3.address.toLowerCase(), recoveredAddress3.toLowerCase());
-        const txResp =  await rewardDist.connect(rewardPoster).postRewardRoot(
+        const txResp = await rewardDist.connect(rewardPoster).postReward(
+            reward.root,
+            reward.amount,
+            [signature1, signature2, signature3])
+
+        return {rewardDist, reward, txResp, contractOldTokenBalance};
+    }
+
+    // post the very first reward, with total 400 on three users. But the contract has not been funded.
+    async function postFirstRewardToNotFundedContractFixture() {
+        const {rewardDist} = await loadFixture(deployRewardContractFixture);
+
+        const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
+
+        // generate first reward merkle tree
+        const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
+            [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
+        const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
+
+        const posterFeeNonce = await rewardDist.posterFeeNonce();
+        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
+
+        const signature1 = await signer1.signMessage(messageHashBytes);
+        const signature2 = await signer2.signMessage(messageHashBytes);
+        const signature3 = await signer3.signMessage(messageHashBytes);
+        const txResp =  await rewardDist.connect(rewardPoster).postReward(
             reward.root,
             reward.amount,
             [signature1, signature2, signature3])
@@ -335,19 +334,20 @@ describe("RewardDistributor", function () {
     describe("Post reward", function(){
         it("Should revert if totalAmount less equal than zero", async function(){
             const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
-            await expect(rewardDist.connect(rewardPoster).postRewardRoot(emptyRewardRoot, 0, []))
+            await expect(rewardDist.connect(rewardPoster).postReward(emptyRewardRoot, 0, []))
                 .to.be.revertedWith("Total amount must be greater than 0");
         });
 
         it("Should revert if not enough signer", async function(){
             const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
-            await expect(rewardDist.connect(rewardPoster).postRewardRoot(emptyRewardRoot, 100, ["0x00"]))
+            await expect(rewardDist.connect(rewardPoster).postReward(emptyRewardRoot, 100, ["0x00"]))
                 .to.be.revertedWith("Not enough signatures");
         });
 
         it("Should revert if reward root already posted", async function(){
             const {rewardDist, reward} = await loadFixture(postFirstRewardFixture);
-            await expect(rewardDist.connect(rewardPoster).postRewardRoot(reward.root, 100, ["0x00", "0x11"]))
+
+            await expect(rewardDist.connect(rewardPoster).postReward(reward.root, 100, ["0x00", "0x11"]))
                 .to.be.revertedWith("Reward root already posted");
         });
 
@@ -357,7 +357,7 @@ describe("RewardDistributor", function () {
             const totalRewardBalance = await rewardToken.balanceOf(await rewardDist.getAddress());
             expect(totalRewardBalance).to.equal(parseUnits("1000", "ether"));
 
-            await expect(rewardDist.connect(rewardPoster).postRewardRoot(emptyRewardRoot, parseUnits("1001", "ether"), ["0x00", "0x11"]))
+            await expect(rewardDist.connect(rewardPoster).postReward(emptyRewardRoot, parseUnits("1001", "ether"), ["0x00", "0x11"]))
                 .to.be.revertedWith("Insufficient contract balance for reward amount");
         });
 
@@ -368,14 +368,14 @@ describe("RewardDistributor", function () {
                 [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-            const rootNonce = await rewardDist.rootNonce();
-            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
+            const posterFeeNonce = await rewardDist.posterFeeNonce();
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
 
             const signatureUnknown = await unknownSigner.signMessage(messageHashBytes); // not an allowed signer
-            await expect(rewardDist.connect(rewardPoster).postRewardRoot(
+            await expect(rewardDist.connect(rewardPoster).postReward(
                 reward.root,
                 reward.amount,
                 [signature1, signature2, signatureUnknown])).to.be.revertedWith("Invalid signer")
@@ -389,14 +389,14 @@ describe("RewardDistributor", function () {
             // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-            const rootNonce = await rewardDist.rootNonce();
-            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, rootNonce, (await rewardDist.getAddress()));
+            const posterFeeNonce = await rewardDist.posterFeeNonce();
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
 
             const signature3 = await signer2.signMessage(messageHashBytes); // signed with signer2 again
-            await expect(rewardDist.connect(rewardPoster).postRewardRoot(
+            await expect(rewardDist.connect(rewardPoster).postReward(
                 reward.root,
                 reward.amount,
                 [signature1, signature2, signature3])).to.be.revertedWith("Duplicate signer")
@@ -405,12 +405,12 @@ describe("RewardDistributor", function () {
         it("Should succeed", async function(){
             const {rewardDist, reward, txResp, contractOldTokenBalance} = await loadFixture(postFirstRewardFixture);
 
-            expect(txResp)
-                .to.emit(rewardDist, "RewardRootPosted")
-                .withArgs(reward.root, reward.amount);
-            expect(await rewardDist.rewardRoots(reward.root)).to.equal(rewardPoster.address);
-            expect(await rewardDist.totalPostedRewards()).to.equal(reward.amount);
-            expect(await rewardDist.rootNonce()).to.equal(1);
+            await expect(txResp.wait())
+                .to.emit(rewardDist, "RewardPosted")
+                .withArgs(reward.root, reward.amount, rewardPoster);
+            expect(await rewardDist.rewardPoster(reward.root)).to.equal(rewardPoster.address);
+            expect(await rewardDist.postedRewards()).to.equal(reward.amount);
+            expect(await rewardDist.postRewardNonce()).to.equal(1);
             expect(await rewardDist.unpostedRewards()).to.equal(contractOldTokenBalance - reward.amount);
         });
     });
@@ -420,20 +420,19 @@ describe("RewardDistributor", function () {
 
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(rewardPoster.address);
-        const oldTotalPostedReward = await rewardDist.totalPostedRewards();
+        const oldTotalPostedReward = await rewardDist.postedRewards();
         const recipient = user1.address;
-        const claimerOldTokenBalance = await rewardToken.balanceOf(rewardClaimer);
+        const recipientOldTokenBalance = await rewardToken.balanceOf(recipient);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
 
         const amount = toBigInt(100); // need to be the same as what's in the tree.
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
-        const minEthValue = await rewardDist.posterReward();
+        const minEthValue = await rewardDist.posterFee();
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
             recipient, amount, reward.root, proof, {value: minEthValue});
-
         return {rewardDist, rewardRoot: reward.root, proof, leaf, recipient, rewardClaimer, amount, txResp,
             paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
-            claimerOldTokenBalance: claimerOldTokenBalance, contractOldTokenBalance};
+            recipientOldTokenBalance, contractOldTokenBalance};
     }
 
     async function claimUser1FirstRewardPay2xFixture() {
@@ -441,32 +440,33 @@ describe("RewardDistributor", function () {
 
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(rewardPoster.address);
-        const oldTotalPostedReward = await rewardDist.totalPostedRewards();
+        const oldTotalPostedReward = await rewardDist.postedRewards();
         const recipient = user1.address;
-        const claimerOldTokenBalance = await rewardToken.balanceOf(rewardClaimer);
+        const recipientOldTokenBalance = await rewardToken.balanceOf(recipient);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
 
         const amount = toBigInt(100); // need to be the same as what's in the tree.
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
-        const minEthValue = await rewardDist.posterReward();
+        const minEthValue = await rewardDist.posterFee();
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
             recipient, amount, reward.root, proof, {value: minEthValue * toBigInt(2)});
 
         return {rewardDist, rewardRoot: reward.root, leaf, recipient, rewardClaimer, amount, txResp,
             paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalPostedReward,
-            claimerOldTokenBalance: claimerOldTokenBalance, contractOldTokenBalance};
+            recipientOldTokenBalance, contractOldTokenBalance};
     }
 
     describe("Claim reward", function () {
         it("Should revert if reward root is not posted", async () => {
-            const {rewardDist, reward} = await loadFixture(postFirstRewardFixture);
+            const {rewardDist} = await loadFixture(postFirstRewardFixture);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 user1.address, 100, emptyRewardRoot, [], {value: 10})).to.be.revertedWith("Reward root not posted");
         });
 
         it("Should revert if reward already claimed", async function(){
-            const {rewardDist, rewardRoot, proof, leaf, recipient, amount, paid} = await loadFixture(claimUser1FirstRewardFixture);
+            const {rewardDist, rewardRoot, proof, txResp, recipient, amount, paid} = await loadFixture(claimUser1FirstRewardFixture);
+            await expect(txResp.wait()).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, amount, rewardClaimer);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 recipient, amount, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
@@ -478,7 +478,7 @@ describe("RewardDistributor", function () {
             const recipient = user1.address;
             const amount = toBigInt(50); // not the same as in leaf
             const {proof, leaf} = getMTreeProof(reward.tree, recipient);
-            const minEthValue = await rewardDist.posterReward();
+            const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 user1.address, amount, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
@@ -489,7 +489,7 @@ describe("RewardDistributor", function () {
 
             const recipient = user1.address;
             const amount = toBigInt(100);
-            const minEthValue = await rewardDist.posterReward();
+            const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 user1.address, amount, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
@@ -501,65 +501,63 @@ describe("RewardDistributor", function () {
             const recipient = user1.address;
             const amount = toBigInt(100);
             const {proof, leaf} = getMTreeProof(reward.tree, recipient);
-            const minEthValue = await rewardDist.posterReward();
+            const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 user1.address, amount, reward.root, proof, {value: minEthValue - toBigInt(1000)})).to.be.revertedWith("Insufficient payment for poster");
         })
 
-        // TODO: revert if transfer/refund failed
-
-        it("Should revert if reward contract has insufficient token", async () => {})
+        // TODO: revert if transfer/refund failed, maybe due to insufficient eth balance to continue execute.
 
         it("Should succeed", async function(){
             const {rewardDist, rewardRoot, leaf, recipient, rewardClaimer, amount, txResp,
                 paid, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
-                claimerOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardFixture);
+                recipientOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardFixture);
             const txReceipt = await txResp.wait();
+            expect(txReceipt).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, amount, rewardClaimer);
 
-            expect(txResp).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, rewardClaimer, amount);
             // @ts-ignore
             expect(await hre.ethers.provider.getBalance(rewardClaimer.address))
                 .to.equal(claimerOldBalance - paid - txReceipt.fee);
             expect(await hre.ethers.provider.getBalance(rewardPoster.address))
                 .to.equal(posterOldBalance + paid);
-            expect(await rewardDist.claimedRewards(rewardRoot, leaf)).to.equal(true);
-            expect(await rewardDist.totalPostedRewards()).to.equal(oldTotalPostedReward - amount);
-            expect(await rewardToken.balanceOf(rewardClaimer)).to.equal(claimerOldTokenBalance + amount);
+            expect(await rewardDist.isRewardClaimed(rewardRoot, leaf)).to.equal(true);
+            expect(await rewardDist.postedRewards()).to.equal(oldTotalPostedReward - amount);
+            expect(await rewardToken.balanceOf(recipient)).to.equal(recipientOldTokenBalance + amount);
             expect(await rewardToken.balanceOf(rewardDist)).to.equal(contractOldTokenBalance - amount);
         })
 
         it("Should succeed with refund", async function(){
             const {rewardDist, rewardRoot, leaf, recipient, rewardClaimer, amount, txResp,
                 paid2x, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
-                claimerOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardPay2xFixture);
+                recipientOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardPay2xFixture);
             const txReceipt = await txResp.wait();
 
-            expect(txResp).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, rewardClaimer, amount);
+            expect(txReceipt).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, rewardClaimer, amount);
             // @ts-ignore
             expect(await hre.ethers.provider.getBalance(rewardClaimer.address))
                 .to.equal(claimerOldBalance - paid2x/toBigInt(2) - txReceipt.fee);
             expect(await hre.ethers.provider.getBalance(rewardPoster.address))
                 .to.equal(posterOldBalance + paid2x/toBigInt(2));
-            expect(await rewardDist.claimedRewards(rewardRoot, leaf)).to.equal(true);
-            expect(await rewardDist.totalPostedRewards()).to.equal(oldTotalPostedReward - amount);
-            expect(await rewardToken.balanceOf(rewardClaimer)).to.equal(claimerOldTokenBalance + amount);
+            expect(await rewardDist.isRewardClaimed(rewardRoot, leaf)).to.equal(true);
+            expect(await rewardDist.postedRewards()).to.equal(oldTotalPostedReward - amount);
+            expect(await rewardToken.balanceOf(recipient)).to.equal(recipientOldTokenBalance + amount);
             expect(await rewardToken.balanceOf(rewardDist)).to.equal(contractOldTokenBalance - amount);
         })
     })
 
-    async function updatePosterRewardFixture() {
+    async function updatePosterFeeFixture() {
         const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-        const nonce = await rewardDist.rewardNonce();
-        const rewardAmount = posterReward2;
+        const nonce = await rewardDist.posterFeeNonce();
+        const rewardAmount = posterFee2;
 
-        const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce, await rewardDist.getAddress());
+        const messageHashBytes = genUpdatePosterFeeMessageHash(rewardAmount, nonce, await rewardDist.getAddress());
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
 
-        const txResp = await rewardDist.updatePosterReward(
+        const txResp = await rewardDist.updatePosterFee(
             rewardAmount, [signature1, signature2]);
         return {rewardDist, rewardAmount, nonce, txResp};
     };
@@ -568,51 +566,51 @@ describe("RewardDistributor", function () {
         it("Should revert if reward is less equal than 0", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            await expect(rewardDist.updatePosterReward(0, [])).to.be.revertedWith("Reward must be greater than 0");
+            await expect(rewardDist.updatePosterFee(0, [])).to.be.revertedWith("Reward must be greater than 0");
         });
 
         it("Should revert if not enough signature", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            await expect(rewardDist.updatePosterReward(11, [])).to.be.revertedWith("Not enough signatures");
+            await expect(rewardDist.updatePosterFee(11, [])).to.be.revertedWith("Not enough signatures");
         });
 
         it("Should revert if invalid signer(wrong message)", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            const nonce = await rewardDist.rewardNonce();
-            const rewardAmount = posterReward2;
+            const nonce = await rewardDist.posterFeeNonce();
+            const rewardAmount = posterFee2;
 
-            const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
+            const messageHashBytes = genUpdatePosterFeeMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
 
-            await expect(rewardDist.updatePosterReward(rewardAmount, [signature1, signature2]))
+            await expect(rewardDist.updatePosterFee(rewardAmount, [signature1, signature2]))
                 .to.be.revertedWith("Invalid signer");
         });
 
         it("Should revert if invalid signer(unknown signer)", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            const nonce = await rewardDist.rewardNonce();
-            const rewardAmount = posterReward2;
+            const nonce = await rewardDist.posterFeeNonce();
+            const rewardAmount = posterFee2;
 
-            const messageHashBytes = genUpdateRewardMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
+            const messageHashBytes = genUpdatePosterFeeMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const unknownSig = await unknownSigner.signMessage(messageHashBytes);
 
-            await expect(rewardDist.updatePosterReward(rewardAmount, [signature1, unknownSig]))
+            await expect(rewardDist.updatePosterFee(rewardAmount, [signature1, unknownSig]))
                 .to.be.revertedWith("Invalid signer");
         });
 
         it("Should succeed", async function(){
-            const {rewardDist, rewardAmount, nonce, txResp} = await loadFixture(updatePosterRewardFixture);
+            const {rewardDist, rewardAmount, nonce, txResp} = await loadFixture(updatePosterFeeFixture);
 
             expect(txResp).to.emit(rewardDist, "RewardRateUpdated").withArgs(rewardAmount, nonce);
-            expect(await rewardDist.posterReward()).to.equal(rewardAmount);
-            expect(await rewardDist.rewardNonce()).to.equal(nonce + toBigInt(1));
+            expect(await rewardDist.posterFee()).to.equal(rewardAmount);
+            expect(await rewardDist.posterFeeNonce()).to.equal(nonce + toBigInt(1));
         });
     });
 
