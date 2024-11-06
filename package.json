@@ -183,7 +183,8 @@
     "yocto-queue": "^0.1.0"
   },
   "scripts": {
-    "test": "mocha"
+    "test": "npx hardhat test",
+    "test:gas": "npx hardhat test --grep 'Gas Fee'"
   },
   "author": "",
   "license": "ISC",

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-//import "hardhat/console.sol";
+import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -135,20 +135,20 @@ contract RewardDistributor is ReentrancyGuard {
 
     // This function updates the fee that rewardPoster will be paid.
     // It must be signed by at least threshold signers.
-    function updatePosterFee(uint256 newReward, bytes[] memory signatures) external {
-        require(newReward > 0, "Reward must be greater than 0");
+    function updatePosterFee(uint256 newFee, bytes[] memory signatures) external {
+        require(newFee > 0, "Fee must be greater than 0");
         require(signatures.length >= threshold, "Not enough signatures");
 
-        bytes32 messageHash = keccak256(abi.encode(newReward, posterFeeNonce, address(this)));
+        bytes32 messageHash = keccak256(abi.encode(newFee, posterFeeNonce, address(this)));
         for (uint256 i = 0; i < signatures.length; i++) {
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
-        posterFee = newReward;
+        posterFee = newFee;
         posterFeeNonce++;
 
-        emit PosterFeeUpdated(newReward, posterFeeNonce -1);
+        emit PosterFeeUpdated(newFee, posterFeeNonce -1);
     }
 
     // updateSigners updates the list of allowed signers and the threshold.
