@@ -19,7 +19,7 @@ contract RewardDistributor is ReentrancyGuard {
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
-    // posterFee is the fee that rewardClaimer will pay to the 'rewardPoster' on each claim, in gwei(why not just wei, simpler)
+    // posterFee is the fee that rewardClaimer will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
     // posterFeeNonce is the nonce for updating the posterFee.
     // It is incremented each time the posterFee is updated.
