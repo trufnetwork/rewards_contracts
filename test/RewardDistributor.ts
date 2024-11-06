@@ -1,7 +1,7 @@
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import { keccak256, AbiCoder, toBigInt, toQuantity, getBytes, parseUnits } from "ethers";
+import { keccak256, AbiCoder, toBigInt, toQuantity, getBytes, parseUnits, parseEther, formatEther, formatUnits } from "ethers";
 import { zeroAddress } from "ethereumjs-util";
 import { IERC20 } from "../typechain-types";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
@@ -46,10 +46,10 @@ function genRewardLeaf(recipient: string, amount: string, thisAddress: string) {
     return getBytes(keccak256(encodedLeaf))
 }
 
-function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, posterFeeNonce: bigint, contractAddress: string): Uint8Array {
+function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
     const encoding = ["bytes32", "uint256", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
-        [rewardRoot, rewardAmount, posterFeeNonce, contractAddress]);
+        [rewardRoot, rewardAmount, nonce, contractAddress]);
     const messageHashBytes = getBytes(keccak256(encodedMsg))
     // const messageHash = keccak256(encodedMsg);
     // expect(messageHash).to.equal(toQuantity(messageHashBytes));
@@ -64,10 +64,10 @@ function genUpdatePosterFeeMessageHash(rewardAmount: bigint, nonce: bigint, cont
     return getBytes(keccak256(encodedMsg))
 }
 
-function genUpdateSignersMessageHash(signers: string[], threshold: number, rewardContract: string): Uint8Array {
-    const encoding = ["address[]", "uint8", "address"];
+function genUpdateSignersMessageHash(signers: string[], threshold: number, nonce: bigint, rewardContract: string): Uint8Array {
+    const encoding = ["address[]", "uint8", "uint256", "address"];
     const encodedMsg = abiCode.encode(encoding,
-        [signers, threshold, rewardContract]);
+        [signers, threshold, nonce, rewardContract]);
     return getBytes(keccak256(encodedMsg))
 }
 
@@ -172,8 +172,8 @@ describe("MessageHash", () => {
             .to.equal("0x3b8eb0e42096e2ef3e56d9b88604477f25dc2102073f5b4e1967044150d8bec4");
     })
     it("Should have expect update signers message hash", async () => {
-        expect(toQuantity(genUpdateSignersMessageHash([addr2, addr3, addr4], 2, contract)))
-            .to.equal("0xd2f344153ec2c1720055d2df687b64fa163db8d4d06b8f6ed6f2ab7b03c03339");
+        expect(toQuantity(genUpdateSignersMessageHash([addr2, addr3, addr4], 2, toBigInt(2), contract)))
+            .to.equal("0x657af792d8a50027b119611226f5deb512dcc3e8cfc75861ceaa506f51ad2141");
     })
 });
 
@@ -221,6 +221,14 @@ describe("RewardDistributor", function () {
     }
 
     describe("Deployment", function(){
+        it("Should revert if too many signers", async () => {
+            const threshold = 4;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            let newSigners = Array.from({length: 21}, (v, k) => user1.address);
+
+            await expect(RewardDist.connect(networkOwner).deploy(newSigners, threshold, posterFee1, rewardToken))
+                .to.be.revertedWith("Too many signers");
+        });
         it("Should revert if not enough signer", async function(){
             const threshold = 4;
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
@@ -269,9 +277,16 @@ describe("RewardDistributor", function () {
             expect(await rewardDist.posterFee()).to.equal(posterFee);
             expect(await rewardDist.rewardToken()).to.equal(rewardToken);
             expect(await rewardDist.threshold()).to.equal(threshold);
-            expect(await rewardDist.signers(0)).to.equal(signer1);
-            expect(await rewardDist.signers(1)).to.equal(signer2);
-            expect(await rewardDist.signers(2)).to.equal(signer3);
+
+
+            expect(await rewardDist.isSigner(signer1)).to.equal(true);
+            expect(await rewardDist.isSigner(signer2)).to.equal(true);
+            expect(await rewardDist.isSigner(signer3)).to.equal(true);
+            expect(await rewardDist.isSigner(newSigner4)).to.equal(false);
+            //
+            // expect(await rewardDist.signers(0)).to.equal(signer1);
+            // expect(await rewardDist.signers(1)).to.equal(signer2);
+            // expect(await rewardDist.signers(2)).to.equal(signer3);
         });
     });
 
@@ -292,8 +307,8 @@ describe("RewardDistributor", function () {
             [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-        const posterFeeNonce = await rewardDist.posterFeeNonce();
-        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
+        const nonce = await rewardDist.nonce();
+        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
@@ -317,8 +332,8 @@ describe("RewardDistributor", function () {
             [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-        const posterFeeNonce = await rewardDist.posterFeeNonce();
-        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
+        const nonce = await rewardDist.nonce();
+        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
@@ -368,8 +383,8 @@ describe("RewardDistributor", function () {
                 [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-            const posterFeeNonce = await rewardDist.posterFeeNonce();
-            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
+            const nonce = await rewardDist.nonce();
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
@@ -389,8 +404,8 @@ describe("RewardDistributor", function () {
             // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
-            const posterFeeNonce = await rewardDist.posterFeeNonce();
-            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, posterFeeNonce, (await rewardDist.getAddress()));
+            const nonce = await rewardDist.nonce();
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
 
             const signature1 = await signer1.signMessage(messageHashBytes);
             const signature2 = await signer2.signMessage(messageHashBytes);
@@ -410,7 +425,7 @@ describe("RewardDistributor", function () {
                 .withArgs(reward.root, reward.amount, rewardPoster);
             expect(await rewardDist.rewardPoster(reward.root)).to.equal(rewardPoster.address);
             expect(await rewardDist.postedRewards()).to.equal(reward.amount);
-            expect(await rewardDist.postRewardNonce()).to.equal(1);
+            expect(await rewardDist.nonce()).to.equal(1);
             expect(await rewardDist.unpostedRewards()).to.equal(contractOldTokenBalance - reward.amount);
         });
     });
@@ -549,24 +564,24 @@ describe("RewardDistributor", function () {
     async function updatePosterFeeFixture() {
         const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-        const nonce = await rewardDist.posterFeeNonce();
-        const rewardAmount = posterFee2;
+        const nonce = await rewardDist.nonce();
+        const fee = posterFee2;
 
-        const messageHashBytes = genUpdatePosterFeeMessageHash(rewardAmount, nonce, await rewardDist.getAddress());
+        const messageHashBytes = genUpdatePosterFeeMessageHash(fee, nonce, await rewardDist.getAddress());
 
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
 
-        const txResp = await rewardDist.updatePosterFee(
-            rewardAmount, [signature1, signature2]);
-        return {rewardDist, rewardAmount, nonce, txResp};
+        const txResp = await rewardDist.connect(networkOwner).updatePosterFee(
+            fee, [signature1, signature2]);
+        return {rewardDist, fee, nonce, txResp};
     };
 
-    describe("Update poster reward", () => {
-        it("Should revert if reward is less equal than 0", async () => {
+    describe("Update poster fee", () => {
+        it("Should revert if fee is less equal than 0", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            await expect(rewardDist.updatePosterFee(0, [])).to.be.revertedWith("Reward must be greater than 0");
+            await expect(rewardDist.updatePosterFee(0, [])).to.be.revertedWith("Fee must be greater than 0");
         });
 
         it("Should revert if not enough signature", async () => {
@@ -578,7 +593,7 @@ describe("RewardDistributor", function () {
         it("Should revert if invalid signer(wrong message)", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            const nonce = await rewardDist.posterFeeNonce();
+            const nonce = await rewardDist.nonce();
             const rewardAmount = posterFee2;
 
             const messageHashBytes = genUpdatePosterFeeMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
@@ -593,7 +608,7 @@ describe("RewardDistributor", function () {
         it("Should revert if invalid signer(unknown signer)", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            const nonce = await rewardDist.posterFeeNonce();
+            const nonce = await rewardDist.nonce();
             const rewardAmount = posterFee2;
 
             const messageHashBytes = genUpdatePosterFeeMessageHash(rewardAmount, nonce + toBigInt(2), await rewardDist.getAddress());
@@ -606,15 +621,23 @@ describe("RewardDistributor", function () {
         });
 
         it("Should succeed", async function(){
-            const {rewardDist, rewardAmount, nonce, txResp} = await loadFixture(updatePosterFeeFixture);
+            const {rewardDist, fee, nonce, txResp} = await loadFixture(updatePosterFeeFixture);
 
-            expect(txResp).to.emit(rewardDist, "RewardRateUpdated").withArgs(rewardAmount, nonce);
-            expect(await rewardDist.posterFee()).to.equal(rewardAmount);
-            expect(await rewardDist.posterFeeNonce()).to.equal(nonce + toBigInt(1));
+            await expect(txResp.wait()).to.emit(rewardDist, "PosterFeeUpdated").withArgs(fee);
+            expect(await rewardDist.posterFee()).to.equal(fee);
+            expect(await rewardDist.nonce()).to.equal(nonce + toBigInt(1));
         });
     });
 
     describe("Update signers", function() {
+        it("Should revert if too many signers", async () => {
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
+
+            let newSigners = Array.from({length: 21}, (v, k) => user1.address);
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, 3, ["0x00"]))
+                .to.be.revertedWith("Too many signers");
+        });
         it("Should revert if not enough signers", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
@@ -651,9 +674,11 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
+            const nonce = await rewardDist.nonce();
             const messageHashBytes = genUpdateSignersMessageHash(
                 newSigners,
                 1, // not the same threshold
+                nonce,
                 await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
@@ -668,8 +693,9 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
+            const nonce = await rewardDist.nonce();
             const messageHashBytes = genUpdateSignersMessageHash(
-                newSigners, newThreshold, await rewardDist.getAddress());
+                newSigners, newThreshold, nonce, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
                 await unknownSigner.signMessage(messageHashBytes),
@@ -683,8 +709,9 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer2.address, signer3.address, zeroAddress()]; // with zero address signer
             const newThreshold = 2;
+            const nonce = await rewardDist.nonce();
             const messageHashBytes = genUpdateSignersMessageHash(
-                newSigners, newThreshold, await rewardDist.getAddress());
+                newSigners, newThreshold, nonce, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
                 await signer2.signMessage(messageHashBytes),
@@ -698,8 +725,9 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer2.address, signer3.address, signer3.address]; // with zero address signer
             const newThreshold = 2;
+            const nonce = await rewardDist.nonce();
             const messageHashBytes = genUpdateSignersMessageHash(
-                newSigners, newThreshold, await rewardDist.getAddress());
+                newSigners, newThreshold, nonce, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
                 await signer2.signMessage(messageHashBytes),
@@ -714,8 +742,9 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer2.address, signer3.address, newSigner4.address];
             const newThreshold = 2;
+            const nonce = await rewardDist.nonce();
             const messageHashBytes = genUpdateSignersMessageHash(
-                newSigners, newThreshold, await rewardDist.getAddress());
+                newSigners, newThreshold, nonce, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
                 await signer2.signMessage(messageHashBytes),
@@ -724,11 +753,12 @@ describe("RewardDistributor", function () {
             const txResp = await rewardDist.connect(networkOwner).updateSigners(
                 newSigners, newThreshold, signatures);
 
-            expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
+            await expect(txResp.wait()).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
             expect(await rewardDist.threshold()).to.equal(newThreshold);
-            expect(await rewardDist.signers(0)).to.equal(signer2);
-            expect(await rewardDist.signers(1)).to.equal(signer3);
-            expect(await rewardDist.signers(2)).to.equal(newSigner4);
+            expect(await rewardDist.isSigner(signer1)).to.equal(false);
+            expect(await rewardDist.isSigner(signer2)).to.equal(true);
+            expect(await rewardDist.isSigner(signer3)).to.equal(true);
+            expect(await rewardDist.isSigner(newSigner4)).to.equal(true);
         });
 
         it("Should succeed with less signers", async function() {
@@ -736,8 +766,9 @@ describe("RewardDistributor", function () {
 
             const newSigners = [signer3.address, newSigner4.address];
             const newThreshold = 2;
+            const nonce = await rewardDist.nonce();
             const messageHashBytes = genUpdateSignersMessageHash(
-                newSigners, newThreshold, await rewardDist.getAddress());
+                newSigners, newThreshold, nonce, await rewardDist.getAddress());
             const signatures = [
                 await signer1.signMessage(messageHashBytes),
                 await signer2.signMessage(messageHashBytes),
@@ -746,13 +777,11 @@ describe("RewardDistributor", function () {
             const txResp = await rewardDist.connect(networkOwner).updateSigners(
                 newSigners, newThreshold, signatures);
 
-            expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
+            await expect(txResp.wait()).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
             expect(await rewardDist.threshold()).to.equal(newThreshold);
-            expect(await rewardDist.signers(0)).to.equal(signer3);
-            expect(await rewardDist.signers(1)).to.equal(newSigner4);
-
-            // await expect(rewardDist.signers(2)).to.be.revertedWithPanic(PANIC_CODES.ARRAY_ACCESS_OUT_OF_BOUNDS)
-            await expect(rewardDist.signers(2)).to.revertedWithoutReason();
+            expect(await rewardDist.isSigner(signer1)).to.equal(false);
+            expect(await rewardDist.isSigner(signer3)).to.equal(true);
+            expect(await rewardDist.isSigner(newSigner4)).to.equal(true);
         });
     });
 
@@ -773,4 +802,131 @@ describe("RewardDistributor", function () {
             })).to.revertedWith("Ether transfers not allowed");
         });
     });
+
+
+    // This just show the gas cost with different threshold signature.
+    // To simplify tests, threshold = len(merkle tree leafs)
+    describe("Gas Fee", function () {
+        async function testGasFee(threshold: number) {
+            console.log("With threshold(also merkle tree leafs) = ", threshold);
+            const _signers = await hre.ethers.getSigners();
+            const allSigners = _signers.slice(0, threshold);
+            const allSignerAddrs = allSigners.map(signer => signer.address);
+            const allAmounts = allSigners.map((_, i) => (i+1)*100);
+
+            // deploy reward contract
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            const rewardDist = await RewardDist.connect(networkOwner).deploy(
+                allSignerAddrs, threshold, posterFee1, rewardToken);
+            const deployTxReceipt = await rewardDist.deploymentTransaction().wait();
+            console.log(`Deploy contract     `, formatEther(deployTxReceipt.fee),
+                ` ether = ${deployTxReceipt.gasUsed} * ${formatUnits(deployTxReceipt.gasPrice, 'gwei')} gwei`);
+
+            // fund reward contract
+            await rewardToken.transfer((await rewardDist.getAddress()), parseUnits("1000", "ether"));
+
+            // post reward
+            const _firstTree = genRewardMerkleTree(
+                allSignerAddrs,
+                allAmounts, await rewardDist.getAddress());
+            const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
+            let nonce = await rewardDist.nonce();
+            const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
+            const allSigs =  await Promise.all(allSigners.map(async signer => signer.signMessage(messageHashBytes)));
+            const postRewardTxResp = await rewardDist.connect(rewardPoster).postReward(
+                reward.root,
+                reward.amount,
+                allSigs);
+            const postRewardTxReceipt = await postRewardTxResp.wait();
+
+            console.log(`Post reward Fee     `, formatEther(postRewardTxReceipt.fee),
+                ` ether = ${postRewardTxReceipt.gasUsed} * ${formatUnits(postRewardTxReceipt.gasPrice, 'gwei')} gwei`);
+
+            // claim reward (threshold doesn't matter, tree structure matters)
+            const recipient = allSignerAddrs[2];
+            const amount = toBigInt(300); // need to be the same as what's in the tree.
+            const {proof, leaf} = getMTreeProof(reward.tree, recipient);
+            const minEthValue = await rewardDist.posterFee();
+            const claimRewardTxResp = await rewardDist.connect(rewardClaimer).claimReward(
+                recipient, amount, reward.root, proof, {value: minEthValue});
+            const claimRewardTxReceipt = await claimRewardTxResp.wait();
+
+            console.log(`Claim reward Fee    `, formatEther(claimRewardTxReceipt.fee),
+                ` ether = ${claimRewardTxReceipt.gasUsed} * ${formatUnits(claimRewardTxReceipt.gasPrice, 'gwei')} gwei`);
+
+            // update poster fee
+            nonce = await rewardDist.nonce();
+            const fee = posterFee2;
+            const updatePosterFeeMessageHashBytes = genUpdatePosterFeeMessageHash(fee, nonce, await rewardDist.getAddress());
+            const updatePosterFeeSigs = await Promise.all(
+                allSigners.map(async signer => signer.signMessage(updatePosterFeeMessageHashBytes)));
+            const updatePosterFeeTxResp = await rewardDist.updatePosterFee(fee, updatePosterFeeSigs);
+            const updatePosterFeeTxReceipt = await updatePosterFeeTxResp.wait();
+
+            console.log(`Update posterFee Fee`, formatEther(updatePosterFeeTxReceipt.fee),
+                ` ether = ${updatePosterFeeTxReceipt.gasUsed} * ${formatUnits(updatePosterFeeTxReceipt.gasPrice, 'gwei')} gwei`);
+
+            // update signers
+            const newSigners = allSignerAddrs.slice(0, allSignerAddrs.length-1); // remove last signer
+            const newThreshold = threshold - 1;
+            nonce = await rewardDist.nonce();
+            const updateSignersMessageHashBytes = genUpdateSignersMessageHash(
+                newSigners, newThreshold, nonce, await rewardDist.getAddress());
+            const updateSignersSigs = await Promise.all(
+                allSigners.map(async signer => signer.signMessage(updateSignersMessageHashBytes)));
+            const updateSignersTxResp = await rewardDist.connect(networkOwner).updateSigners(
+                newSigners, newThreshold, updateSignersSigs);
+            const updateSignersTxReceipt = await updateSignersTxResp.wait();
+
+            console.log(`Update signers Fee  `, formatEther(updateSignersTxReceipt.fee),
+                ` ether = ${updateSignersTxReceipt.gasUsed} * ${formatUnits(updateSignersTxReceipt.gasPrice, 'gwei')} gwei`);
+        }
+
+        it("threshold 20", async ()=>{
+            await testGasFee(20);
+        });
+
+        it("threshold 10", async ()=>{
+            await testGasFee(10);
+        });
+
+        it("threshold 5", async ()=>{
+            await testGasFee(5);
+        });
+    })
+
+    // hardhat config:
+    //   solidity: {
+    //     version: "0.8.27",
+    //     settings: {
+    //       optimizer: {
+    //         enabled: true,
+    //         runs: 200
+    //       },
+    //       evmVersion: `paris`, // https://github.com/NomicFoundation/hardhat/issues/4232
+    //     }
+    //   },
+    //
+    //     Gas Fee
+    // With threshold(also merkle tree leafs) =  20
+    // Deploy contract      0.002551633  ether = 2551633 * 1.0 gwei
+    // Post reward Fee      0.00030293  ether = 302930 * 1.0 gwei
+    // Claim reward Fee     0.000105216  ether = 105216 * 1.0 gwei
+    // Update posterFee Fee 0.00019551  ether = 195510 * 1.0 gwei
+    // Update signers Fee   0.000301443  ether = 301443 * 1.0 gwei
+    //       ✔ threshold 20 (64ms)
+    // With threshold(also merkle tree leafs) =  10
+    // Deploy contract      0.002096755  ether = 2096755 * 1.0 gwei
+    // Post reward Fee      0.000191066  ether = 191066 * 1.0 gwei
+    // Claim reward Fee     0.000088162  ether = 88162 * 1.0 gwei
+    // Update posterFee Fee 0.000115669  ether = 115669 * 1.0 gwei
+    // Update signers Fee   0.000167889  ether = 167889 * 1.0 gwei
+    //       ✔ threshold 10
+    // With threshold(also merkle tree leafs) =  5
+    // Deploy contract      0.00186931  ether = 1869310 * 1.0 gwei
+    // Post reward Fee      0.000142632  ether = 142632 * 1.0 gwei
+    // Claim reward Fee     0.000087381  ether = 87381 * 1.0 gwei
+    // Update posterFee Fee 0.000075674  ether = 75674 * 1.0 gwei
+    // Update signers Fee   0.000101024  ether = 101024 * 1.0 gwei
+    //       ✔ threshold 5
 });

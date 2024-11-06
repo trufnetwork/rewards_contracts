@@ -34,11 +34,11 @@ func genRewardMerkleTree(users []string, amounts []string, contractAddress strin
 	return string(dump), nil
 }
 
-func genPostRewardMessageHash(rewardRootHash string, rewardAmount string, rootNonce string, contractAddress string) ([]byte, error) {
+func genPostRewardMessageHash(rewardRootHash string, rewardAmount string, nonce string, contractAddress string) ([]byte, error) {
 	encoding := []string{"bytes32", "uint256", "uint256", "address"}
 	var b32 [32]byte
 	copy(b32[:], smt.SolBytes(rewardRootHash))
-	data, err := smt.AbiPack(encoding, b32, smt.SolNumber(rewardAmount), smt.SolNumber(rootNonce), common.HexToAddress(contractAddress))
+	data, err := smt.AbiPack(encoding, b32, smt.SolNumber(rewardAmount), smt.SolNumber(nonce), common.HexToAddress(contractAddress))
 	if err != nil {
 		return nil, err
 	}
@@ -46,22 +46,22 @@ func genPostRewardMessageHash(rewardRootHash string, rewardAmount string, rootNo
 	return smt.Keccak256(data)
 }
 
-func genUpdatePosterFeeMessageHash(rewardAmount string, rootNonce string, contractAddress string) ([]byte, error) {
+func genUpdatePosterFeeMessageHash(rewardAmount string, nonce string, contractAddress string) ([]byte, error) {
 	encoding := []string{"uint256", "uint256", "address"}
-	data, err := smt.AbiPack(encoding, smt.SolNumber(rewardAmount), smt.SolNumber(rootNonce), common.HexToAddress(contractAddress))
+	data, err := smt.AbiPack(encoding, smt.SolNumber(rewardAmount), smt.SolNumber(nonce), common.HexToAddress(contractAddress))
 	if err != nil {
 		return nil, err
 	}
 	return smt.Keccak256(data)
 }
 
-func genUpdateSignerMessageHash(signers []string, threshold string, contractAddress string) ([]byte, error) {
-	encoding := []string{"address[]", "uint8", "address"}
+func genUpdateSignerMessageHash(signers []string, threshold string, nonce string, contractAddress string) ([]byte, error) {
+	encoding := []string{"address[]", "uint8", "uint256", "address"}
 	signerVs := make([]common.Address, len(signers))
 	for i, v := range signers {
 		signerVs[i] = common.HexToAddress(v)
 	}
-	data, err := smt.AbiPack(encoding, signerVs, smt.SolNumber(threshold), common.HexToAddress(contractAddress))
+	data, err := smt.AbiPack(encoding, signerVs, smt.SolNumber(threshold), smt.SolNumber(nonce), common.HexToAddress(contractAddress))
 	if err != nil {
 		return nil, err
 	}

@@ -10,41 +10,40 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract RewardDistributor is ReentrancyGuard {
     // isSigner maps all allowed signers to true
-    mapping(address => bool) private isSigner;
+    mapping(address => bool) public isSigner;
     // signers is the list of allowed signers
-    address[] public signers;
+    address[] private signers;
     // threshold is the minimum number of signatures required to postReward/updatePosterFee/updateSigners
     uint8 public threshold;
+    // maxAllowedSigners is the maximum number of signers, so there will be a gas cap
+    uint8 constant public maxAllowedSigners = 20;
     // rewardPoster maps a reward hash(merkle tree root) to the address that posted the root
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
     // posterFee is the fee that rewardClaimer will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
-    // posterFeeNonce is the nonce for updating the posterFee.
-    // It is incremented each time the posterFee is updated.
-    uint256 public posterFeeNonce;
-    // postRewardNonce is the nonce for posting new reward.
-    // It is incremented each time a new reward is posted
-    // to prevent replay attacks and to ensure that the reward root is unique.
-    uint256 public postRewardNonce;
+    // nonce is for multi-sign updating the state of this contract, to prevent replay attack.
+    // It is incremented every time postReward/updatePosterFee/updateSigners is called.
+    /// @dev claimReward doesn't need nonce, as the rewardRoot is unique.
+    uint256 public nonce;
     // rewardToken is the address of the ERC20 token used for rewards
-    IERC20 public rewardToken;
+    IERC20 immutable public rewardToken;
     // postedRewards is the total amount of rewards posted to the contract.
     // It can never exceed the total balance of the token owned by the contract.
     uint256 public postedRewards;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
-    event PosterFeeUpdated(uint256 newFee, uint256 nonce);
+    event PosterFeeUpdated(uint256 newFee);
     event SignersUpdated(address[] newSigners, uint8 newThreshold);
 
     constructor(address[] memory _allowedSigners, uint8 _threshold, uint256 _posterFee, IERC20 _rewardToken) {
-        // MAYBE ensure len(_allowedSigners) <= ?
+        require(_allowedSigners.length <= maxAllowedSigners, "Too many signers");
         require(_threshold <= _allowedSigners.length, "Threshold must be less than or equal to the number of signers");
         require(_threshold > 0, "Threshold must be greater than 0");
 
-        for (uint256 i = 0; i < _allowedSigners.length; i++) {
+        for (uint256 i; i < _allowedSigners.length; i++) {
             require(_allowedSigners[i] != address(0), "Invalid signer");
             require(!isSigner[_allowedSigners[i]], "Duplicate signer");
 
@@ -57,20 +56,18 @@ contract RewardDistributor is ReentrancyGuard {
         signers = _allowedSigners;
     }
 
-    /// @notice This function adds new reward record to the contract.
+    /// This function adds new reward record to the contract.
     /// It requires at least threshold signatures from allowed signers.
     /// @dev It's called by network rewardPoster.
-    function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] memory signatures) external {
+    function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] calldata signatures) external {
         require(rewardAmount > 0, "Total amount must be greater than 0");
         require(signatures.length >= threshold, "Not enough signatures");
         require(rewardPoster[rewardRoot] == address(0), "Reward root already posted");
         require(rewardToken.balanceOf(address(this)) >= postedRewards + rewardAmount, "Insufficient contract balance for reward amount");
 
-        // we don't need nonces here because the reward root is unique, and it would (for all intents and purposes)
-        // be impossible to replay the same reward root with a different total amount
-        bytes32 messageHash = keccak256(abi.encode(rewardRoot, rewardAmount, postRewardNonce, address(this)));
+        bytes32 messageHash = keccak256(abi.encode(rewardRoot, rewardAmount, nonce, address(this)));
         address[] memory memSigners = new address[](signatures.length);
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint256 i; i < signatures.length; i++) {
             // MessageHashUtils.toEthSignedMessageHash to prepend EIP-191 prefix, since client uses `personal_sign`
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
@@ -79,7 +76,7 @@ contract RewardDistributor is ReentrancyGuard {
 
         // verify that the signers are unique
         // This is needed since mappings cannot be used in memory in Solidity
-        for (uint256 i = 0; i < memSigners.length; i++) {
+        for (uint256 i; i < memSigners.length; i++) {
             for (uint256 j = i + 1; j < memSigners.length; j++) {
                 require(memSigners[i] != memSigners[j], "Duplicate signer");
             }
@@ -87,18 +84,18 @@ contract RewardDistributor is ReentrancyGuard {
 
         rewardPoster[rewardRoot] = msg.sender;
         postedRewards += rewardAmount;
-        postRewardNonce++;
+        nonce++;
 
         emit RewardPosted(rewardRoot, rewardAmount, msg.sender);
     }
 
-    /// @notice This allows a user to claim reward by providing the leaf data and
+    /// This allows a user to claim reward by providing the leaf data and
     /// correspond Merkle proof, on behalf of the recipient.
     /// The reward must be posted and not already claimed.
     /// @dev There is no reimbursement for whoever call this function, it's settled off-chain.
     /// @dev This is only way to transfer reward token out of this contract.
     /// @dev This is called by a rewardClaimer, not necessarily the recipient.
-    function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] memory proof) external payable nonReentrant {
+    function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] calldata proof) external payable nonReentrant {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
@@ -133,44 +130,43 @@ contract RewardDistributor is ReentrancyGuard {
         emit RewardClaimed(recipient, amount, msg.sender);
     }
 
-    // This function updates the fee that rewardPoster will be paid.
-    // It must be signed by at least threshold signers.
-    function updatePosterFee(uint256 newReward, bytes[] memory signatures) external {
-        require(newReward > 0, "Reward must be greater than 0");
+    /// This function updates the fee that rewardPoster will be paid.
+    /// It must be signed by at least threshold signers.
+    function updatePosterFee(uint256 newFee, bytes[] calldata signatures) external {
+        require(newFee > 0, "Fee must be greater than 0");
         require(signatures.length >= threshold, "Not enough signatures");
 
-        bytes32 messageHash = keccak256(abi.encode(newReward, posterFeeNonce, address(this)));
-        for (uint256 i = 0; i < signatures.length; i++) {
+        bytes32 messageHash = keccak256(abi.encode(newFee, nonce, address(this)));
+        for (uint256 i; i < signatures.length; i++) {
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
-        posterFee = newReward;
-        posterFeeNonce++;
+        posterFee = newFee;
+        nonce++;
 
-        emit PosterFeeUpdated(newReward, posterFeeNonce -1);
+        emit PosterFeeUpdated(newFee);
     }
 
-    // updateSigners updates the list of allowed signers and the threshold.
-    // It must be signed by at least threshold signers.
-    function updateSigners(address[] memory newSigners, uint8 newThreshold, bytes[] memory signatures) external {
-        // MAYBE ensure len(newSigners) <= ?
+    /// updateSigners updates the list of allowed signers and the threshold.
+    /// It must be signed by at least threshold signers.
+    function updateSigners(address[] calldata newSigners, uint8 newThreshold, bytes[] calldata signatures) external {
+        require(newSigners.length <= maxAllowedSigners, "Too many signers");
         require(newThreshold <= newSigners.length, "Threshold must be less than or equal to the number of signers");
         require(newThreshold > 0, "Threshold must be greater than 0");
-
         require(signatures.length >= threshold, "Not enough signatures");
 
-        bytes32 messageHash = keccak256(abi.encode(newSigners, newThreshold, address(this)));
-        for (uint256 i = 0; i < signatures.length; i++) {
+        bytes32 messageHash = keccak256(abi.encode(newSigners, newThreshold, nonce, address(this)));
+        for (uint256 i; i < signatures.length; i++) {
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
-        for (uint256 i = 0; i < signers.length; i++) {
+        for (uint256 i; i < signers.length; i++) {
             delete isSigner[signers[i]];
         }
 
-        for (uint256 i = 0; i < newSigners.length; i++) {
+        for (uint256 i; i < newSigners.length; i++) {
             require(newSigners[i] != address(0), "Invalid new signer");
             require(!isSigner[newSigners[i]], "Duplicate new signer");
 
@@ -179,12 +175,13 @@ contract RewardDistributor is ReentrancyGuard {
 
         signers = newSigners;
         threshold = newThreshold;
+        nonce++;
 
         emit SignersUpdated(newSigners, newThreshold);
     }
 
-    // unpostedRewards is the total amount of rewards that are owned by the contract
-    // and have not been posted in a reward root.
+    /// unpostedRewards is the total amount of rewards that are owned by the contract
+    /// and have not been posted in a reward root.
     function unpostedRewards() public view returns (uint256) {
         return rewardToken.balanceOf(address(this)) - postedRewards;
     }
