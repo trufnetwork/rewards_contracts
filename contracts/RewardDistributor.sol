@@ -102,7 +102,7 @@ contract RewardDistributor is ReentrancyGuard {
 
         // get the leaf hash
         // yaiba: seems whoever have access to the original (whole)Merkle tree can claim the reward?
-        // i.e., how one get other proofs?  is there a place/operator has the whole Merkle tree?
+        // i.e., how one get other proofs?  is there a place/operator has the whole Merkle tree? is it more secure if get proof by leaf(not by data)?
         // maybe only allow `recipient` to claim reward???? i.e. use msg.sender as recipient, we can 100% sure it's the right person
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this)))));
         require(!claimedRewards[rewardRoot][leaf], "Reward already claimed");
@@ -206,13 +206,39 @@ contract RewardDistributor is ReentrancyGuard {
 
 //// for echidna
 //contract TestRewardDistributor {
-//    RewardDistributor public rd;
-//
-//    constructor (address rrd) {
-//        rd = RewardDistributor(rrd);
+//    // Extracted function to return the signers array
+//    function _getSigners() internal pure returns (address[] memory) {
+//        address[] memory addrs = new address[](3);
+//        addrs[0] = 0x6Ecbe1DB9EF729CBe972C83Fb886247691Fb6beb;
+//        addrs[1] = 0xE36Ea790bc9d7AB70C55260C66D52b1eca985f84;
+//        addrs[2] = 0xE834EC434DABA538cd1b9Fe1582052B880BD7e63;
+//        return addrs;
 //    }
 //
-//    function echidna_threshold_less_equal_than_signers() public view returns (bool) {
-//        return rd.threshold < rd.signers.length;
+////    // Constructor to initialize the parent contract with the necessary parameters
+////    constructor() RewardDistributor(
+////    _getSigners(),
+////    2,
+////    4000,
+////    IERC20(0x1D7022f5B17d2F8B695918FB48fa1089C9f85401)
+////    ) {}
+//
+//RewardDistributor private rd;
+//
+//    constructor() {
+//    rd = RewardDistributor(
+//    _getSigners(),
+//    2,
+//    4000,
+//    IERC20(0x1D7022f5B17d2F8B695918FB48fa1089C9f85401)
+//    );
 //    }
+//
+////    function echidna_threshold_less_equal_than_signers() public view returns (bool) {
+////        return threshold < signers.length;
+////    }
+////
+////    function echidna_token_wont_change() public view returns (bool) {
+////        return token == IERC20(0x1dC4c1cEFEF38a777b15aA20260a54E584b16C48);
+////    }
 //}
