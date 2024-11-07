@@ -910,23 +910,23 @@ describe("RewardDistributor", function () {
     //     Gas Fee
     // With threshold(also merkle tree leafs) =  20
     // Deploy contract      0.002551633  ether = 2551633 * 1.0 gwei
-    // Post reward Fee      0.000302978  ether = 302978 * 1.0 gwei
-    // Claim reward Fee     0.000105227  ether = 105227 * 1.0 gwei
-    // Update posterFee Fee 0.000195486  ether = 195486 * 1.0 gwei
-    // Update signers Fee   0.000301353  ether = 301353 * 1.0 gwei
-    //       ✔ threshold 20 (46ms)
+    // Post reward Fee      0.00030293  ether = 302930 * 1.0 gwei
+    // Claim reward Fee     0.000105216  ether = 105216 * 1.0 gwei
+    // Update posterFee Fee 0.00019551  ether = 195510 * 1.0 gwei
+    // Update signers Fee   0.000301443  ether = 301443 * 1.0 gwei
+    //       ✔ threshold 20 (64ms)
     // With threshold(also merkle tree leafs) =  10
     // Deploy contract      0.002096755  ether = 2096755 * 1.0 gwei
-    // Post reward Fee      0.000191018  ether = 191018 * 1.0 gwei
-    // Claim reward Fee     0.000088127  ether = 88127 * 1.0 gwei
-    // Update posterFee Fee 0.000115621  ether = 115621 * 1.0 gwei
-    // Update signers Fee   0.000167811  ether = 167811 * 1.0 gwei
+    // Post reward Fee      0.000191066  ether = 191066 * 1.0 gwei
+    // Claim reward Fee     0.000088162  ether = 88162 * 1.0 gwei
+    // Update posterFee Fee 0.000115669  ether = 115669 * 1.0 gwei
+    // Update signers Fee   0.000167889  ether = 167889 * 1.0 gwei
     //       ✔ threshold 10
     // With threshold(also merkle tree leafs) =  5
     // Deploy contract      0.00186931  ether = 1869310 * 1.0 gwei
     // Post reward Fee      0.000142632  ether = 142632 * 1.0 gwei
-    // Claim reward Fee     0.000086609  ether = 86609 * 1.0 gwei
-    // Update posterFee Fee 0.000075638  ether = 75638 * 1.0 gwei
-    // Update signers Fee   0.00010097  ether = 100970 * 1.0 gwei
+    // Claim reward Fee     0.000087381  ether = 87381 * 1.0 gwei
+    // Update posterFee Fee 0.000075674  ether = 75674 * 1.0 gwei
+    // Update signers Fee   0.000101024  ether = 101024 * 1.0 gwei
     //       ✔ threshold 5
 });
