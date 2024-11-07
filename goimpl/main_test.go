@@ -82,8 +82,8 @@ func TestMessageHash(t *testing.T) {
 	})
 
 	t.Run("update signers message hash", func(t *testing.T) {
-		h, err := genUpdateSignerMessageHash([]string{addr2, addr3, addr4}, "2", contract)
+		h, err := genUpdateSignerMessageHash([]string{addr2, addr3, addr4}, "2", "2", contract)
 		require.NoError(t, err)
-		assert.Equal(t, hexutil.Encode(h), "0xd2f344153ec2c1720055d2df687b64fa163db8d4d06b8f6ed6f2ab7b03c03339")
+		assert.Equal(t, hexutil.Encode(h), "0x657af792d8a50027b119611226f5deb512dcc3e8cfc75861ceaa506f51ad2141")
 	})
 }
