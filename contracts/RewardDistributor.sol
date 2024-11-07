@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
@@ -10,11 +10,13 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract RewardDistributor is ReentrancyGuard {
     // isSigner maps all allowed signers to true
-    mapping(address => bool) private isSigner;
+    mapping(address => bool) public isSigner;
     // signers is the list of allowed signers
-    address[] public signers;
+    address[] private signers;
     // threshold is the minimum number of signatures required to postReward/updatePosterFee/updateSigners
     uint8 public threshold;
+    // maxAllowedSigners is the maximum number of signers, so there will be a gas cap
+    uint8 constant public maxAllowedSigners = 20;
     // rewardPoster maps a reward hash(merkle tree root) to the address that posted the root
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
@@ -29,7 +31,7 @@ contract RewardDistributor is ReentrancyGuard {
     // to prevent replay attacks and to ensure that the reward root is unique.
     uint256 public postRewardNonce;
     // rewardToken is the address of the ERC20 token used for rewards
-    IERC20 public rewardToken;
+    IERC20 immutable public rewardToken;
     // postedRewards is the total amount of rewards posted to the contract.
     // It can never exceed the total balance of the token owned by the contract.
     uint256 public postedRewards;
@@ -40,11 +42,11 @@ contract RewardDistributor is ReentrancyGuard {
     event SignersUpdated(address[] newSigners, uint8 newThreshold);
 
     constructor(address[] memory _allowedSigners, uint8 _threshold, uint256 _posterFee, IERC20 _rewardToken) {
-        // MAYBE ensure len(_allowedSigners) <= ?
+        require(_allowedSigners.length <= maxAllowedSigners, "Too many signers");
         require(_threshold <= _allowedSigners.length, "Threshold must be less than or equal to the number of signers");
         require(_threshold > 0, "Threshold must be greater than 0");
 
-        for (uint256 i = 0; i < _allowedSigners.length; i++) {
+        for (uint256 i; i < _allowedSigners.length; i++) {
             require(_allowedSigners[i] != address(0), "Invalid signer");
             require(!isSigner[_allowedSigners[i]], "Duplicate signer");
 
@@ -60,7 +62,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @notice This function adds new reward record to the contract.
     /// It requires at least threshold signatures from allowed signers.
     /// @dev It's called by network rewardPoster.
-    function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] memory signatures) external {
+    function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] calldata signatures) external {
         require(rewardAmount > 0, "Total amount must be greater than 0");
         require(signatures.length >= threshold, "Not enough signatures");
         require(rewardPoster[rewardRoot] == address(0), "Reward root already posted");
@@ -70,7 +72,7 @@ contract RewardDistributor is ReentrancyGuard {
         // be impossible to replay the same reward root with a different total amount
         bytes32 messageHash = keccak256(abi.encode(rewardRoot, rewardAmount, postRewardNonce, address(this)));
         address[] memory memSigners = new address[](signatures.length);
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint256 i; i < signatures.length; i++) {
             // MessageHashUtils.toEthSignedMessageHash to prepend EIP-191 prefix, since client uses `personal_sign`
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
@@ -79,7 +81,7 @@ contract RewardDistributor is ReentrancyGuard {
 
         // verify that the signers are unique
         // This is needed since mappings cannot be used in memory in Solidity
-        for (uint256 i = 0; i < memSigners.length; i++) {
+        for (uint256 i; i < memSigners.length; i++) {
             for (uint256 j = i + 1; j < memSigners.length; j++) {
                 require(memSigners[i] != memSigners[j], "Duplicate signer");
             }
@@ -98,7 +100,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev There is no reimbursement for whoever call this function, it's settled off-chain.
     /// @dev This is only way to transfer reward token out of this contract.
     /// @dev This is called by a rewardClaimer, not necessarily the recipient.
-    function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] memory proof) external payable nonReentrant {
+    function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] calldata proof) external payable nonReentrant {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
@@ -135,12 +137,12 @@ contract RewardDistributor is ReentrancyGuard {
 
     // This function updates the fee that rewardPoster will be paid.
     // It must be signed by at least threshold signers.
-    function updatePosterFee(uint256 newFee, bytes[] memory signatures) external {
+    function updatePosterFee(uint256 newFee, bytes[] calldata signatures) external {
         require(newFee > 0, "Fee must be greater than 0");
         require(signatures.length >= threshold, "Not enough signatures");
 
         bytes32 messageHash = keccak256(abi.encode(newFee, posterFeeNonce, address(this)));
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint256 i; i < signatures.length; i++) {
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
@@ -153,24 +155,23 @@ contract RewardDistributor is ReentrancyGuard {
 
     // updateSigners updates the list of allowed signers and the threshold.
     // It must be signed by at least threshold signers.
-    function updateSigners(address[] memory newSigners, uint8 newThreshold, bytes[] memory signatures) external {
-        // MAYBE ensure len(newSigners) <= ?
+    function updateSigners(address[] calldata newSigners, uint8 newThreshold, bytes[] calldata signatures) external {
+        require(newSigners.length <= maxAllowedSigners, "Too many signers");
         require(newThreshold <= newSigners.length, "Threshold must be less than or equal to the number of signers");
         require(newThreshold > 0, "Threshold must be greater than 0");
-
         require(signatures.length >= threshold, "Not enough signatures");
 
         bytes32 messageHash = keccak256(abi.encode(newSigners, newThreshold, address(this)));
-        for (uint256 i = 0; i < signatures.length; i++) {
+        for (uint256 i; i < signatures.length; i++) {
             address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
             require(isSigner[signer], "Invalid signer");
         }
 
-        for (uint256 i = 0; i < signers.length; i++) {
+        for (uint256 i; i < signers.length; i++) {
             delete isSigner[signers[i]];
         }
 
-        for (uint256 i = 0; i < newSigners.length; i++) {
+        for (uint256 i; i < newSigners.length; i++) {
             require(newSigners[i] != address(0), "Invalid new signer");
             require(!isSigner[newSigners[i]], "Duplicate new signer");
 

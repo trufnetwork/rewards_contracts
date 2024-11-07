@@ -221,6 +221,14 @@ describe("RewardDistributor", function () {
     }
 
     describe("Deployment", function(){
+        it("Should revert if too many signers", async () => {
+            const threshold = 4;
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            let newSigners = Array.from({length: 21}, (v, k) => user1.address);
+
+            await expect(RewardDist.connect(networkOwner).deploy(newSigners, threshold, posterFee1, rewardToken))
+                .to.be.revertedWith("Too many signers");
+        });
         it("Should revert if not enough signer", async function(){
             const threshold = 4;
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
@@ -269,9 +277,16 @@ describe("RewardDistributor", function () {
             expect(await rewardDist.posterFee()).to.equal(posterFee);
             expect(await rewardDist.rewardToken()).to.equal(rewardToken);
             expect(await rewardDist.threshold()).to.equal(threshold);
-            expect(await rewardDist.signers(0)).to.equal(signer1);
-            expect(await rewardDist.signers(1)).to.equal(signer2);
-            expect(await rewardDist.signers(2)).to.equal(signer3);
+
+
+            expect(await rewardDist.isSigner(signer1)).to.equal(true);
+            expect(await rewardDist.isSigner(signer2)).to.equal(true);
+            expect(await rewardDist.isSigner(signer3)).to.equal(true);
+            expect(await rewardDist.isSigner(newSigner4)).to.equal(false);
+            //
+            // expect(await rewardDist.signers(0)).to.equal(signer1);
+            // expect(await rewardDist.signers(1)).to.equal(signer2);
+            // expect(await rewardDist.signers(2)).to.equal(signer3);
         });
     });
 
@@ -615,6 +630,14 @@ describe("RewardDistributor", function () {
     });
 
     describe("Update signers", function() {
+        it("Should revert if too many signers", async () => {
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
+
+            let newSigners = Array.from({length: 21}, (v, k) => user1.address);
+
+            await expect(rewardDist.connect(networkOwner).updateSigners(newSigners, 3, ["0x00"]))
+                .to.be.revertedWith("Too many signers");
+        });
         it("Should revert if not enough signers", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
@@ -726,9 +749,16 @@ describe("RewardDistributor", function () {
 
             expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
             expect(await rewardDist.threshold()).to.equal(newThreshold);
-            expect(await rewardDist.signers(0)).to.equal(signer2);
-            expect(await rewardDist.signers(1)).to.equal(signer3);
-            expect(await rewardDist.signers(2)).to.equal(newSigner4);
+            expect(await rewardDist.isSigner(signer1)).to.equal(false);
+            expect(await rewardDist.isSigner(signer2)).to.equal(true);
+            expect(await rewardDist.isSigner(signer3)).to.equal(true);
+            expect(await rewardDist.isSigner(newSigner4)).to.equal(true);
+
+
+            //
+            // expect(await rewardDist.signers(0)).to.equal(signer2);
+            // expect(await rewardDist.signers(1)).to.equal(signer3);
+            // expect(await rewardDist.signers(2)).to.equal(newSigner4);
         });
 
         it("Should succeed with less signers", async function() {
@@ -748,11 +778,14 @@ describe("RewardDistributor", function () {
 
             expect(txResp).to.emit(rewardDist, "SignersUpdated").withArgs(newSigners, newThreshold);
             expect(await rewardDist.threshold()).to.equal(newThreshold);
-            expect(await rewardDist.signers(0)).to.equal(signer3);
-            expect(await rewardDist.signers(1)).to.equal(newSigner4);
+            expect(await rewardDist.isSigner(signer1)).to.equal(false);
+            expect(await rewardDist.isSigner(signer3)).to.equal(true);
+            expect(await rewardDist.isSigner(newSigner4)).to.equal(true);
+            // expect(await rewardDist.signers(0)).to.equal(signer3);
+            // expect(await rewardDist.signers(1)).to.equal(newSigner4);
 
             // await expect(rewardDist.signers(2)).to.be.revertedWithPanic(PANIC_CODES.ARRAY_ACCESS_OUT_OF_BOUNDS)
-            await expect(rewardDist.signers(2)).to.revertedWithoutReason();
+            // await expect(rewardDist.signers(2)).to.revertedWithoutReason();
         });
     });
 
@@ -776,10 +809,10 @@ describe("RewardDistributor", function () {
 
 
     // This just show the gas cost with different threshold signature.
-    // To simplify tests, threshold = len(signers)
+    // To simplify tests, threshold = len(merkle tree leafs)
     describe("Gas Fee", function () {
         async function testGasFee(threshold: number) {
-            console.log("With threshold ", threshold);
+            console.log("With threshold(also merkle tree leafs) = ", threshold);
             const _signers = await hre.ethers.getSigners();
             const allSigners = _signers.slice(0, threshold);
             const allSignerAddrs = allSigners.map(signer => signer.address);
@@ -789,6 +822,9 @@ describe("RewardDistributor", function () {
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
             const rewardDist = await RewardDist.connect(networkOwner).deploy(
                 allSignerAddrs, threshold, posterFee1, rewardToken);
+            const deployTxReceipt = await rewardDist.deploymentTransaction().wait();
+            console.log(`Deploy contract     `, formatEther(deployTxReceipt.fee),
+                ` ether = ${deployTxReceipt.gasUsed} * ${formatUnits(deployTxReceipt.gasPrice, 'gwei')} gwei`);
 
             // fund reward contract
             await rewardToken.transfer((await rewardDist.getAddress()), parseUnits("1000", "ether"));
@@ -861,4 +897,52 @@ describe("RewardDistributor", function () {
             await testGasFee(5);
         });
     })
+
+    // 0.8.27, hardhat config solidity.optimizer.enabled = false
+    //
+    // With threshold(also merkle tree leafs) =  20
+    // Deploy contract      0.003847104  ether = 3847104 * 1.0 gwei
+    // Post reward Fee      0.000316255  ether = 316255 * 1.0 gwei
+    // Claim reward Fee     0.000108492  ether = 108492 * 1.0 gwei
+    // Update posterFee Fee 0.000224913  ether = 224913 * 1.0 gwei
+    // Update signers Fee   0.000332126  ether = 332126 * 1.0 gwei
+    //       ✔ threshold 20 (56ms)
+    // With threshold(also merkle tree leafs) =  10
+    // Deploy contract      0.003390916  ether = 3390916 * 1.0 gwei
+    // Post reward Fee      0.00019929  ether = 199290 * 1.0 gwei
+    // Claim reward Fee     0.000091392  ether = 91392 * 1.0 gwei
+    // Update posterFee Fee 0.00013961  ether = 139610 * 1.0 gwei
+    // Update signers Fee   0.000180403  ether = 180403 * 1.0 gwei
+    //       ✔ threshold 10
+    // With threshold(also merkle tree leafs) =  5
+    // Deploy contract      0.003162816  ether = 3162816 * 1.0 gwei
+    // Post reward Fee      0.000147989  ether = 147989 * 1.0 gwei
+    // Claim reward Fee     0.000089758  ether = 89758 * 1.0 gwei
+    // Update posterFee Fee 0.000096902  ether = 96902 * 1.0 gwei
+    // Update signers Fee   0.000104464  ether = 104464 * 1.0 gwei
+    //       ✔ threshold 5
+
+    // 0.8.27, hardhat config solidity.optimizer.enabled = true
+    //
+    // With threshold(also merkle tree leafs) =  20
+    // Deploy contract      0.0025574  ether = 2557400 * 1.0 gwei
+    // Post reward Fee      0.000302978  ether = 302978 * 1.0 gwei
+    // Claim reward Fee     0.000105272  ether = 105272 * 1.0 gwei
+    // Update posterFee Fee 0.000213056  ether = 213056 * 1.0 gwei
+    // Update signers Fee   0.000296208  ether = 296208 * 1.0 gwei
+    //       ✔ threshold 20 (47ms)
+    // With threshold(also merkle tree leafs) =  10
+    // Deploy contract      0.002102522  ether = 2102522 * 1.0 gwei
+    // Post reward Fee      0.000191018  ether = 191018 * 1.0 gwei
+    // Claim reward Fee     0.000088172  ether = 88172 * 1.0 gwei
+    // Update posterFee Fee 0.000133203  ether = 133203 * 1.0 gwei
+    // Update signers Fee   0.000162655  ether = 162655 * 1.0 gwei
+    //       ✔ threshold 10
+    // With threshold(also merkle tree leafs) =  5
+    // Deploy contract      0.001875077  ether = 1875077 * 1.0 gwei
+    // Post reward Fee      0.000142632  ether = 142632 * 1.0 gwei
+    // Claim reward Fee     0.000086654  ether = 86654 * 1.0 gwei
+    // Update posterFee Fee 0.00009322  ether = 93220 * 1.0 gwei
+    // Update signers Fee   0.000095801  ether = 95801 * 1.0 gwei
+    //       ✔ threshold 5
 });
