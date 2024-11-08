@@ -10,11 +10,11 @@ const config: HardhatUserConfig = {
     hardhat: {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
       gasPrice: 1000000000,
+      mining: {
+        auto: false,
+        interval: 30000, // 30s
+      },
     },
-    // sepolia: {
-    //   url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-    //   accounts: [SEPOLIA_PRIVATE_KEY]
-    // }
   },
   solidity: {
     version: "0.8.27",

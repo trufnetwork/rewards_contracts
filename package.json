@@ -184,7 +184,9 @@
   },
   "scripts": {
     "test": "npx hardhat test",
-    "test:gas": "npx hardhat test --grep 'Gas Fee'"
+    "test:gas": "npx hardhat test --grep 'Gas Fee'",
+    "test:redeploy": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy.ts --network localhost",
+    "test:node": "npx hardhat node --config hardhat.config.test.ts"
   },
   "author": "",
   "license": "ISC",

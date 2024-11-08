@@ -1,181 +1,29 @@
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import { keccak256, AbiCoder, toBigInt, toQuantity, getBytes, parseUnits, parseEther, formatEther, formatUnits } from "ethers";
+import { toBigInt, parseUnits, formatEther, formatUnits } from "ethers";
 import { zeroAddress } from "ethereumjs-util";
 import { IERC20 } from "../typechain-types";
-import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
 import {PANIC_CODES} from "@nomicfoundation/hardhat-chai-matchers/panic";
+import {
+    genRewardMerkleTree,
+    getMTreeProof,
+    genRewardLeaf,
+    genPostRewardMessageHash,
+    genUpdatePosterFeeMessageHash,
+    genUpdateSignersMessageHash
+} from "../lib.reward";
 
-import fs from "fs";
+describe("Sign message", () => {
+    it("Should have expect signature", async () => {
+        const msg = "sosup";
+        const [n, signer1] = await hre.ethers.getSigners();
 
-import {MerkleTree} from "merkletreejs";
-
-
-const abiCode = new AbiCoder();
-
-// generate a reward merkle tree with each leaf as `(recipient, amount, contract_address)`
-function genRewardMerkleTree(users: string[], amounts: number[], rewardContract: string): {tree: StandardMerkleTree<any>, amount: bigint} {
-    const leafEncoding =  ["address", "uint256", "address"];
-    const values: any[][] = users.map((user, index): any[] => [user, amounts[index].toString(), rewardContract]);
-    const tree = StandardMerkleTree.of(values, leafEncoding);
-    const total: number = amounts.reduce((sum, current) => sum + current, 0);
-    return {tree, amount: toBigInt(total)};
-}
-
-function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: string[], leaf: string} {
-    for (const [i, v] of mtree.entries()) {
-        if (v[0] === addr) {
-            const proof = mtree.getProof(i);
-            const leaf = standardLeafHash(["address", "uint256", "address"], v);
-            // console.log('-Value:', v);
-            // console.log('-Proof:', proof);
-            // console.log('-Leaf :', leaf);
-            return {proof, leaf};
-        }
-    }
-
-    return {proof: [], leaf: ""};
-}
-
-function genRewardLeaf(recipient: string, amount: string, thisAddress: string) {
-    const encoding =  ["address", "uint256", "address"];
-    const encodedLeaf = abiCode.encode(encoding, [recipient, amount, thisAddress]);
-    return getBytes(keccak256(encodedLeaf))
-}
-
-function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
-    const encoding = ["bytes32", "uint256", "uint256", "address"];
-    const encodedMsg = abiCode.encode(encoding,
-        [rewardRoot, rewardAmount, nonce, contractAddress]);
-    const messageHashBytes = getBytes(keccak256(encodedMsg))
-    // const messageHash = keccak256(encodedMsg);
-    // expect(messageHash).to.equal(toQuantity(messageHashBytes));
-
-    return messageHashBytes
-}
-
-function genUpdatePosterFeeMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
-    const encoding = ["uint256", "uint256", "address"];
-    const encodedMsg = abiCode.encode(encoding,
-        [rewardAmount, nonce, contractAddress]);
-    return getBytes(keccak256(encodedMsg))
-}
-
-function genUpdateSignersMessageHash(signers: string[], threshold: number, nonce: bigint, rewardContract: string): Uint8Array {
-    const encoding = ["address[]", "uint8", "uint256", "address"];
-    const encodedMsg = abiCode.encode(encoding,
-        [signers, threshold, nonce, rewardContract]);
-    return getBytes(keccak256(encodedMsg))
-}
-
-// mtjs is a demonstration using merkletreejs to generate OpenZeppelin compatible tree
-function mtjs(): string {
-    const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    const addr2 = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-    const addr3 = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
-    const addr4 = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
-    const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
-    const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
-
-    const l1 = genRewardLeaf(addr1, "100", contract);
-    // console.log("----", keccak256(l1))
-    const l2 = genRewardLeaf(addr2, "200", contract);
-    // console.log("----", keccak256(l2))
-    const l3 = genRewardLeaf(addr3, "100", contract);
-    // console.log("----", keccak256(l3))
-
-    const leaves = [l1,l2,l3];
-    // the OpenZeppelin Standard Merkle Tree uses an opinionated double leaf hashing algorithm
-    // and the odd leaf is unchanged and be used for next pairing.
-    // So any Go/JS library has similar implementation should be compatible.
-    const tree = new MerkleTree(leaves, keccak256, { hashLeaves: true, sortLeaves: true, sortPairs: true})
-    // console.log("tree--", tree.toString()) // show the tree structure
-    const root = tree.getRoot().toString('hex')
-    return root
-}
-
-describe("MerkleTree", function () {
-    const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    const addr2 = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-    const addr3 = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
-    const addr4 = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
-    const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
-    const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
-
-    it("Should generate a merkle tree leaf", async () => {
-        const l1 = genRewardLeaf(addr1, "100", contract);
-        expect(toQuantity(l1)).to.equal("0x65fef5c01e7c257346e6e8f73387b7629868a2d6b7c33a797bf66221955b1243");
-
-        const l2 = genRewardLeaf(addr2, "200", contract);
-        expect(toQuantity(l2)).to.equal("0xeead0f527d6a0b128921e7ba9ffb2cdaa1168bda76cd00e566a706ed5771ac28");
-
-        const l3 = genRewardLeaf(addr3, "100", contract);
-        expect(toQuantity(l3)).to.equal("0xfd9ed9c87a7232f483697c9fe33cc9c52f534abfb4290002a58f650b6e360e1b");
-
-        expect(mtjs()).to.equal("e4b867aad8e2ed878496a1d11f020ec3e2cb4470e552bbaeb5d3cb8b633b7d60");
-    })
-
-    it("Should generate a merkle tree with 3 leafs", async () => {
-        const t = genRewardMerkleTree([addr1, addr2, addr3],
-            [100, 200, 100], contract);
-        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/3leafs_tree.json").toString());
-        expect(t.tree.root).to.equal("0xe4b867aad8e2ed878496a1d11f020ec3e2cb4470e552bbaeb5d3cb8b633b7d60"); // same as mtjs output
-
-        const p = getMTreeProof(t.tree, addr3)
-        expect(p.proof).to.deep.equal(['0x2f87038f22c4d34c3b4a790a5feeabe33502a6ce9db946d119e9f02ee2c616f9']);
-        expect(p.leaf).to.equal('0xe8e4b2dfdc4cd3b98cb2b8a0562554fb20fa55b0a56051a4477a32317de956eb');
-    });
-    it("Should generate a merkle tree with 4 leafs", async () => {
-        const t = genRewardMerkleTree([addr1, addr2, addr3, addr4],
-            [100, 200, 100, 200], contract);
-        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/4leafs_tree.json").toString());
-
-        const p = getMTreeProof(t.tree, addr3)
-        expect(p.proof).to.deep.equal([
-            '0x843c5da35b6dec0d96b1667418b89fb8650c0c011fe4622b1304b55bfe1b5d9d',
-            '0x195aca1e2ee1f09f900f6174cb3ea54d325f29ad05919a4e4416e1c0558a44d6'
-            ]);
-        expect(p.leaf).to.equal('0xe8e4b2dfdc4cd3b98cb2b8a0562554fb20fa55b0a56051a4477a32317de956eb');
-    });
-    it("Should generate a merkle tree with 5 leafs", async () => {
-        const t = genRewardMerkleTree([addr1, addr2, addr3, addr4, addr5],
-            [100, 200, 100, 200, 100], contract);
-        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/5leafs_tree.json").toString());
-
-        const p = getMTreeProof(t.tree, addr3)
-        expect(p.proof).to.deep.equal([
-            '0x195aca1e2ee1f09f900f6174cb3ea54d325f29ad05919a4e4416e1c0558a44d6',
-            '0x038afff99cec2e245a14b191c62ff961b5d4b288634e01b64fd0af40609c0efd'
-        ]);
-        expect(p.leaf).to.equal('0xe8e4b2dfdc4cd3b98cb2b8a0562554fb20fa55b0a56051a4477a32317de956eb');
+        expect(await signer1.signMessage(msg))
+            .to.equal("0x1fc551d4d1f0901b64432dc59f372beb231adfa2021e1fa5a2cc314df7d98f114ff8afa4603ceee05f768532b615807df8ac358b64b318baaeef5237301240771b")
     });
 })
-
-describe("MessageHash", () => {
-    const addr1 = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    const addr2 = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
-    const addr3 = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
-    const addr4 = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
-    const addr5 = "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65";
-    const contract = "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc";
-    const root = "0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb";
-
-    it("Should have expect post reward message hash", async () => {
-        expect(toQuantity(genPostRewardMessageHash(root, toBigInt(100), toBigInt(2), contract)))
-            .to.equal("0xc49ce1c0fc2fb8cbdce3bceabff54675091caeda76cdee9ce0a139bd79cd8c02");
-    })
-    it("Should have expect update poster fee message hash", async () => {
-        expect(toQuantity(genUpdatePosterFeeMessageHash(toBigInt(100), toBigInt(2), contract)))
-            .to.equal("0x3b8eb0e42096e2ef3e56d9b88604477f25dc2102073f5b4e1967044150d8bec4");
-    })
-    it("Should have expect update signers message hash", async () => {
-        expect(toQuantity(genUpdateSignersMessageHash([addr2, addr3, addr4], 2, toBigInt(2), contract)))
-            .to.equal("0x657af792d8a50027b119611226f5deb512dcc3e8cfc75861ceaa506f51ad2141");
-    })
-});
 
 describe("RewardDistributor", function () {
     // setups
@@ -183,6 +31,8 @@ describe("RewardDistributor", function () {
     const rewardContractAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
     const posterFee1 = parseUnits("1000000", "gwei")
     const posterFee2 = parseUnits("2000000", "gwei")
+
+    const kwilFirstRewardBlock = toBigInt(100);
 
     let rewardToken: IERC20;
 
@@ -304,12 +154,12 @@ describe("RewardDistributor", function () {
 
         // generate first reward merkle tree
         const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-            [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
+            [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
         const nonce = await rewardDist.nonce();
-        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
 
+        const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
         const signature1 = await signer1.signMessage(messageHashBytes);
         const signature2 = await signer2.signMessage(messageHashBytes);
         const signature3 = await signer3.signMessage(messageHashBytes);
@@ -329,7 +179,7 @@ describe("RewardDistributor", function () {
 
         // generate first reward merkle tree
         const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-            [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
+            [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
         const nonce = await rewardDist.nonce();
@@ -380,7 +230,7 @@ describe("RewardDistributor", function () {
             const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
 
             const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-                [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
+                [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
             const nonce = await rewardDist.nonce();
@@ -400,7 +250,7 @@ describe("RewardDistributor", function () {
             const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
 
             const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-                [100,200,100], await rewardDist.getAddress()); // 0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb
+                [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
             // console.log('First Merkle tree:', JSON.stringify(_firstTree.tree.dump()), _firstTree.tree.root);
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
@@ -433,6 +283,7 @@ describe("RewardDistributor", function () {
     async function claimUser1FirstRewardFixture() {
         const {rewardDist, reward} = await loadFixture(postFirstRewardFixture);
 
+
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(rewardPoster.address);
         const oldTotalPostedReward = await rewardDist.postedRewards();
@@ -444,7 +295,7 @@ describe("RewardDistributor", function () {
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
         const minEthValue = await rewardDist.posterFee();
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
-            recipient, amount, reward.root, proof, {value: minEthValue});
+            recipient, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue});
         return {rewardDist, rewardRoot: reward.root, proof, leaf, recipient, rewardClaimer, amount, txResp,
             paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
             recipientOldTokenBalance, contractOldTokenBalance};
@@ -464,7 +315,7 @@ describe("RewardDistributor", function () {
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
         const minEthValue = await rewardDist.posterFee();
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
-            recipient, amount, reward.root, proof, {value: minEthValue * toBigInt(2)});
+            recipient, amount,kwilFirstRewardBlock, reward.root, proof, {value: minEthValue * toBigInt(2)});
 
         return {rewardDist, rewardRoot: reward.root, leaf, recipient, rewardClaimer, amount, txResp,
             paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalPostedReward,
@@ -476,7 +327,7 @@ describe("RewardDistributor", function () {
             const {rewardDist} = await loadFixture(postFirstRewardFixture);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, 100, emptyRewardRoot, [], {value: 10})).to.be.revertedWith("Reward root not posted");
+                user1.address, 100, kwilFirstRewardBlock, emptyRewardRoot, [], {value: 10})).to.be.revertedWith("Reward root not posted");
         });
 
         it("Should revert if reward already claimed", async function(){
@@ -484,7 +335,7 @@ describe("RewardDistributor", function () {
             await expect(txResp.wait()).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, amount, rewardClaimer);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                recipient, amount, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
+                recipient, amount, kwilFirstRewardBlock, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
         });
 
         it("Should revert if invalid proof(wrong leaf)", async () => {
@@ -496,7 +347,7 @@ describe("RewardDistributor", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                user1.address, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
         });
 
         it("Should revert if invalid proof(wrong proof)", async () => {
@@ -507,7 +358,7 @@ describe("RewardDistributor", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                user1.address, amount, kwilFirstRewardBlock, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
         })
 
         it("Should revert if insufficient payment", async () => {
@@ -519,7 +370,7 @@ describe("RewardDistributor", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, reward.root, proof, {value: minEthValue - toBigInt(1000)})).to.be.revertedWith("Insufficient payment for poster");
+                user1.address, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue - toBigInt(1000)})).to.be.revertedWith("Insufficient payment for poster");
         })
 
         // TODO: revert if transfer/refund failed, maybe due to insufficient eth balance to continue execute.
@@ -828,7 +679,7 @@ describe("RewardDistributor", function () {
             // post reward
             const _firstTree = genRewardMerkleTree(
                 allSignerAddrs,
-                allAmounts, await rewardDist.getAddress());
+                allAmounts, await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
             let nonce = await rewardDist.nonce();
             const messageHashBytes = genPostRewardMessageHash(reward.root, reward.amount, nonce, (await rewardDist.getAddress()));
@@ -848,7 +699,7 @@ describe("RewardDistributor", function () {
             const {proof, leaf} = getMTreeProof(reward.tree, recipient);
             const minEthValue = await rewardDist.posterFee();
             const claimRewardTxResp = await rewardDist.connect(rewardClaimer).claimReward(
-                recipient, amount, reward.root, proof, {value: minEthValue});
+                recipient, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue});
             const claimRewardTxReceipt = await claimRewardTxResp.wait();
 
             console.log(`Claim reward Fee    `, formatEther(claimRewardTxReceipt.fee),
@@ -907,26 +758,26 @@ describe("RewardDistributor", function () {
     //     }
     //   },
     //
-    //     Gas Fee
+    //    Gas Fee
     // With threshold(also merkle tree leafs) =  20
-    // Deploy contract      0.002551633  ether = 2551633 * 1.0 gwei
-    // Post reward Fee      0.00030293  ether = 302930 * 1.0 gwei
-    // Claim reward Fee     0.000105216  ether = 105216 * 1.0 gwei
-    // Update posterFee Fee 0.00019551  ether = 195510 * 1.0 gwei
-    // Update signers Fee   0.000301443  ether = 301443 * 1.0 gwei
-    //       ✔ threshold 20 (64ms)
+    // Deploy contract      0.002561684  ether = 2561684 * 1.0 gwei
+    // Post reward Fee      0.000302966  ether = 302966 * 1.0 gwei
+    // Claim reward Fee     0.000106189  ether = 106189 * 1.0 gwei
+    // Update posterFee Fee 0.000195486  ether = 195486 * 1.0 gwei
+    // Update signers Fee   0.000301353  ether = 301353 * 1.0 gwei
+    //       ✔ threshold 20 (52ms)
     // With threshold(also merkle tree leafs) =  10
-    // Deploy contract      0.002096755  ether = 2096755 * 1.0 gwei
-    // Post reward Fee      0.000191066  ether = 191066 * 1.0 gwei
-    // Claim reward Fee     0.000088162  ether = 88162 * 1.0 gwei
-    // Update posterFee Fee 0.000115669  ether = 115669 * 1.0 gwei
-    // Update signers Fee   0.000167889  ether = 167889 * 1.0 gwei
-    //       ✔ threshold 10
+    // Deploy contract      0.002106806  ether = 2106806 * 1.0 gwei
+    // Post reward Fee      0.000191018  ether = 191018 * 1.0 gwei
+    // Claim reward Fee     0.000088342  ether = 88342 * 1.0 gwei
+    // Update posterFee Fee 0.000115621  ether = 115621 * 1.0 gwei
+    // Update signers Fee   0.000167811  ether = 167811 * 1.0 gwei
+    //       ✔ threshold 10 (44ms)
     // With threshold(also merkle tree leafs) =  5
-    // Deploy contract      0.00186931  ether = 1869310 * 1.0 gwei
+    // Deploy contract      0.001879361  ether = 1879361 * 1.0 gwei
     // Post reward Fee      0.000142632  ether = 142632 * 1.0 gwei
-    // Claim reward Fee     0.000087381  ether = 87381 * 1.0 gwei
-    // Update posterFee Fee 0.000075674  ether = 75674 * 1.0 gwei
-    // Update signers Fee   0.000101024  ether = 101024 * 1.0 gwei
+    // Claim reward Fee     0.000086824  ether = 86824 * 1.0 gwei
+    // Update posterFee Fee 0.000075638  ether = 75638 * 1.0 gwei
+    // Update signers Fee   0.00010097  ether = 100970 * 1.0 gwei
     //       ✔ threshold 5
 });
