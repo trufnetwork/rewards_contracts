@@ -1,16 +1,15 @@
 import hre from "hardhat";
 import RewardDistributorModule from "../ignition/modules/RewardDistributor";
 import KwilMockToken from "../ignition/modules/KwilMockToken";
-import { IERC20 } from "../typechain-types";
+// import { mine } from "@nomicfoundation/hardhat-network-helpers";
 
-import "ethers";
+import { parseUnits } from "ethers";
 
 
 async function main() {
     if (hre.network.name == "localhost") {
-        const [networkOwner, signer1, signer2, signer3, newSigner4, rewardPoster, user1, user2, user3, rewardClaimer, unknownSigner] = await hre.ethers.getSigners();
-
-        // let mockToken: IERC20;
+        const [networkOwner, signer1, signer2, signer3, newSigner4,
+            rewardPoster, user1, user2, user3, rewardClaimer, unknownSigner] = await hre.ethers.getSigners();
 
         const {mockToken} = await hre.ignition.deploy(KwilMockToken, {
             defaultSender: networkOwner.address,
@@ -18,27 +17,15 @@ async function main() {
                 KwilMockToken: {
                     owner: networkOwner.address,
                 }
-            }
+            },
+            config: {
+                requiredConfirmations: 1,
+            },
         });
+
         console.log(`Token deployed to: ${await mockToken.getAddress()}`);
 
-
-
-        //
-        //
-        // //
-        // // // Fetch the deployed contract
-        // const TokenContract = await hre.ethers.getContractFactory("KwilMockToken");
-        //
-        //
-        // const tokenContract = TokenContract.attach(await mockToken.getAddress());
-        // //
-        // // const transferTx = await tokenContract.connect(networkOwner).transfer(receiver, amount);
-        //
-        // // await mockToken.transfer((await rewardDist.getAddress()), parseUnits("1000", "ether"));
-
-
-        const { rd, m } = await hre.ignition.deploy(RewardDistributorModule, {
+        const { rd } = await hre.ignition.deploy(RewardDistributorModule, {
             parameters: {
                 RewardDistributor: {
                     signers: [signer1.address, signer2.address, signer3.address],
@@ -48,13 +35,15 @@ async function main() {
                 },
             },
             defaultSender: networkOwner.address,
+            config: {
+                requiredConfirmations: 1,
+            },
         });
 
         console.log(`Contract deployed to: ${await rd.getAddress()}`);
 
-
-        // TODO: transfer some mockToken to rd
-
+        await mockToken.transfer((await rd.getAddress()), parseUnits("1000", "ether"));
+        console.log("Contract's token balance", await mockToken.balanceOf(await rd.getAddress()))
     } else {
         console.log(`deploy to '${hre.network.name}' network is not supported yet`);
     }

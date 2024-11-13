@@ -8,22 +8,27 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func GenRewardMerkleTree(users []string, amounts []string, contractAddress string) (string, string, error) {
+var (
+	MerkleLeafEncoding = []string{smt.SOL_ADDRESS, smt.SOL_UINT256, smt.SOL_ADDRESS, smt.SOL_UINT256}
+)
+
+func GenRewardMerkleTree(users []string, amounts []string, contractAddress string, kwilBlock string) (string, string, error) {
 	if len(users) != len(amounts) {
 		return "", "", fmt.Errorf("users and amounts length not equal")
 	}
 
-	leafEncoding := []string{smt.SOL_ADDRESS, smt.SOL_UINT256, smt.SOL_ADDRESS}
 	values := [][]interface{}{}
 	for i, v := range users {
 		values = append(values,
 			[]interface{}{
 				smt.SolAddress(v),
 				smt.SolNumber(amounts[i]),
-				smt.SolAddress(contractAddress)})
+				smt.SolAddress(contractAddress),
+				smt.SolNumber(kwilBlock),
+			})
 	}
 
-	rewardTree, err := smt.Of(values, leafEncoding)
+	rewardTree, err := smt.Of(values, MerkleLeafEncoding)
 	if err != nil {
 		return "", "", fmt.Errorf("create reward tree error: %w", err)
 	}
@@ -45,6 +50,7 @@ func GenPostRewardMessageHash(rewardRootHash string, rewardAmount string, nonce 
 		return nil, err
 	}
 
+	//return data, nil
 	return smt.Keccak256(data)
 }
 

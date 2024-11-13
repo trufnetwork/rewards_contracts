@@ -95,11 +95,11 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev There is no reimbursement for whoever call this function, it's settled off-chain.
     /// @dev This is only way to transfer reward token out of this contract.
     /// @dev This is called by a rewardClaimer, not necessarily the recipient.
-    function claimReward(address recipient, uint256 amount, bytes32 rewardRoot, bytes32[] calldata proof) external payable nonReentrant {
+    function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] calldata proof) external payable nonReentrant {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this)))));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this), kwilBlock))));
         require(!isRewardClaimed[rewardRoot][leaf], "Reward already claimed");
 
         // verify the Merkle proof

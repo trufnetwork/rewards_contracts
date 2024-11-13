@@ -12,7 +12,7 @@ const RewardDistributorModule = buildModule("RewardDistributor", (m) => {
     // m.call(mockToken, "transfer", [await rd., amount]);
 
 
-    return {rd, m};
+    return {rd };
 });
 
 export default RewardDistributorModule;

@@ -1,21 +1,26 @@
 package uploader
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"goimpl/reward"
 	"goimpl/utils"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var chainID = flag.String("chain-id", "31337", "chain id")
-var token = flag.String("token", "", "reward token address")
-var contract = flag.String("contract", "", "reward contract address")
+var token = flag.String("token", "0x5FbDB2315678afecb367f032d93F642f64180aa3", "reward token address")
+var contract = flag.String("contract", "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512", "reward contract address")
 var rpc = flag.String("rpc", "http://localhost:8545/", "rpc url for evm blockchain")
 
 type testWallet [2]string       // address, privateKey
@@ -42,17 +47,26 @@ var testWallets = []testWallet{ // from Hardhat
 	{"0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199", "0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e"},
 }
 
-type mockKwilApi struct {
-	signers  []testWallet
-	users    []testWallet
-	amounts  []int
-	contract string
-	tree     string
+type NonceGetter func() *big.Int
 
-	rewardNonce int
+type mockKwilApi struct {
+	signers     []testWallet
+	users       []testWallet
+	amounts     []uint
+	contract    string
+	block       uint64
+	rewardEvery uint64
+	nonce       NonceGetter
+
+	trees map[string]string // root => treeJSON
 }
 
-func (m *mockKwilApi) FetchRewardRequests(int64) ([]*KwilRewardRecord, error) {
+func (m *mockKwilApi) FetchRewardRequests(blockHeight uint64, limit int) ([]*KwilRewardRecord, error) {
+	if m.block%m.rewardEvery != 0 { // produce a new reward every few blocks
+		m.block += 1
+		return nil, nil
+	}
+
 	signers := make([]*ecdsa.PrivateKey, len(m.signers))
 
 	var err error
@@ -63,8 +77,8 @@ func (m *mockKwilApi) FetchRewardRequests(int64) ([]*KwilRewardRecord, error) {
 		}
 	}
 
-	total := 0
-	amounts := utils.Map(m.amounts, func(a int) string {
+	var total uint = 0
+	amounts := utils.Map(m.amounts, func(a uint) string {
 		total += a
 		return fmt.Sprintf("%d", a)
 	})
@@ -73,41 +87,49 @@ func (m *mockKwilApi) FetchRewardRequests(int64) ([]*KwilRewardRecord, error) {
 		return k[0]
 	})
 
-	t, root, err := reward.GenRewardMerkleTree(users, amounts, m.contract)
+	t, root, err := reward.GenRewardMerkleTree(users, amounts, m.contract, fmt.Sprintf("%d", m.block))
 	if err != nil {
 		return nil, err
 	}
 
-	m.tree = t
-
+	m.trees[root] = t
 	amount := fmt.Sprintf("%d", total)
 
-	hash, err := reward.GenPostRewardMessageHash(root, amount, fmt.Sprintf("%d", m.rewardNonce), m.contract)
+	// THIS means, the signers will need to know nonce from the contract.
+	// And signers even don't need to query the contract, they can just track the
+	// nonce locally, as a reward is bound to one nonce.
+	hash, err := reward.GenPostRewardMessageHash(root, amount, m.nonce().String(), m.contract)
 	if err != nil {
 		return nil, err
 	}
 
 	sigs := make([][]byte, len(signers))
 	for i, signer := range signers {
-		sigs[i], err = crypto.Sign(hash, signer)
+		sigs[i], err = reward.EthZeppelinSign(hash, signer)
 		if err != nil {
 			return nil, err
 		}
 	}
+
+	m.block += 1
 
 	return []*KwilRewardRecord{
 		{
 			Root:        root,
 			Amount:      amount,
 			Signatures:  sigs,
-			BlockHeight: 1,
+			BlockHeight: m.block - 1,
 		},
 	}, nil
 }
 
 func (m *mockKwilApi) GetRewardProof(root, wallet string) ([][]byte, error) {
-	//tree := getTree(root)
-	proof, _, err := reward.GetMTreeProof(m.tree, wallet)
+	tree, ok := m.trees[root]
+	if !ok {
+		return nil, fmt.Errorf("reward not found")
+	}
+
+	proof, _, err := reward.GetMTreeProof(tree, wallet)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +137,34 @@ func (m *mockKwilApi) GetRewardProof(root, wallet string) ([][]byte, error) {
 	return proof, nil
 }
 
-func TestUploader_hardhat(t *testing.T) {
+// newCounter creates a nextIdx that counts from 0 .
+func newCounter() chan int {
+	ch := make(chan int)
+	go func() {
+		i := 0
+		for {
+			ch <- i
+			i++
+		}
+	}()
+
+	return ch
+}
+
+func NewEmptyState() *State {
+	return &State{
+		index: make(map[uint64]int),
+	}
+}
+
+func NewTmpState() *State {
+	return &State{
+		index: make(map[uint64]int),
+		path:  "/tmp/uploadState.json",
+	}
+}
+
+func TestUploader_hardhat_first_reward(t *testing.T) {
 	// NOTE: This test assumes reward token and reward contract has been deployed.
 
 	if *chainID == "" {
@@ -137,19 +186,114 @@ func TestUploader_hardhat(t *testing.T) {
 	uploadPK, err := crypto.HexToECDSA(testWallets[5][1][2:])
 	require.NoError(t, err)
 
-	api := &mockKwilApi{
-		signers:     testWallets[1:4],
-		users:       testWallets[4:7],
-		amounts:     []int{100, 200, 300},
-		contract:    *contract,
-		rewardNonce: 0,
+	//// get nonce
+	client, err := ethclient.Dial(*rpc)
+	require.NoError(t, err)
+	addr := common.HexToAddress(*contract)
+	rewardContract, err := reward.NewReward(addr, client)
+	require.NoError(t, err)
+	getNonce := func() *big.Int {
+		nonce, err := rewardContract.Nonce(nil)
+		if err != nil {
+			t.Fatalf("get nonce err: %s", err)
+		}
+		return nonce
 	}
 
-	uploader, err := NewEVMUploader(*rpc, *chainID, *contract, api, uploadPK, NewEmptyState())
+	api := &mockKwilApi{
+		signers:     testWallets[1:4], // need to be the same as deploy.ts
+		users:       testWallets[6:9], // need to be the same as deploy.ts
+		amounts:     []uint{100, 200, 100},
+		contract:    *contract,
+		block:       10,
+		rewardEvery: 1,
+		nonce:       getNonce,
+		trees:       make(map[string]string),
+	}
+
+	uploader, err := NewEVMUploader(*rpc, *chainID, *contract, api, uploadPK, NewTmpState())
 	require.NoError(t, err)
 
-	uploader.fetchReward()
-	err = uploader.checkPosting()
+	uploader.repostPostedReward = true
+
+	ctx := context.Background()
+
+	err = uploader.fetchPendingRewards(ctx)
 	require.NoError(t, err)
 
+	err = uploader.checkRewardPostingStatus(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(uploader.state.Pending))
+	assert.Equal(t, uint64(10), uploader.state.Pending[0])
+
+	err = uploader.checkRewardPostingStatus(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(uploader.state.Pending))
+}
+
+func TestUploader_hardhat_run(t *testing.T) {
+	// NOTE: This test assumes reward token and reward contract has been deployed.
+
+	if testing.Short() {
+		t.Skip("short mode")
+	}
+
+	if *chainID == "" {
+		t.Skip("chain id is not configured")
+	}
+
+	if *token == "" {
+		t.Skip("token is not configured")
+	}
+
+	if *contract == "" {
+		t.Skip("contract is not configured")
+	}
+
+	if *rpc == "" {
+		t.Skip("rpc is not configured")
+	}
+
+	uploadPK, err := crypto.HexToECDSA(testWallets[5][1][2:])
+	require.NoError(t, err)
+
+	//// get nonce
+	client, err := ethclient.Dial(*rpc)
+	require.NoError(t, err)
+	addr := common.HexToAddress(*contract)
+	rewardContract, err := reward.NewReward(addr, client)
+	require.NoError(t, err)
+	getNonce := func() *big.Int {
+		nonce, err := rewardContract.Nonce(nil)
+		if err != nil {
+			t.Fatalf("get nonce err: %s", err)
+		}
+		return nonce
+	}
+
+	api := &mockKwilApi{
+		signers:     testWallets[1:4], // need to be the same as deploy.ts
+		users:       testWallets[6:9], // need to be the same as deploy.ts
+		amounts:     []uint{100, 200, 100},
+		contract:    *contract,
+		block:       37,
+		rewardEvery: 3,
+		nonce:       getNonce,
+		trees:       make(map[string]string),
+	}
+
+	state := NewTmpState()
+	//state, err := LoadStateFromFile("/tmp/uploadState.json")
+	require.NoError(t, err)
+
+	// NOTE: config auto mining to every 30s
+
+	uploader, err := NewEVMUploader(*rpc, *chainID, *contract, api, uploadPK, state)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	uploader.Start(ctx)
+
+	time.Sleep(time.Minute * 7)
 }
