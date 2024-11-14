@@ -32,8 +32,10 @@ const (
 	// NOTE: average Ethereum main net block time is 14s
 	numOfConfirmation = 10 // 140s
 	// numOfWaitTooLong is the number of blocks that one TX has waited, we
-	// should increase the gas price or tip to make this TX get included quicker
+	// should increase the tip to make this TX get included quicker
 	numOfWaitTooLong = 270 // roughly 1 hour
+	// extraTipInGwei is the extra tip per gas we pay to get TX included faster
+	extraTipInGwei = 3
 )
 
 var (
@@ -373,7 +375,7 @@ func (u *EVMUploader) checkRewardPostingStatus(ctx context.Context) error {
 // an EVM compatible chain.
 // if prioritize=true, the reward will be re-submitted with previous nonce, normally
 // with higher tip.
-func (u *EVMUploader) postReward(ctx context.Context, rd *Reward, extraTipInGwei int64, prioritize bool) error {
+func (u *EVMUploader) postReward(ctx context.Context, rd *Reward, extraTipInGwei uint64, prioritize bool) error {
 	slog.Info("post new reward record", "root", rd.Request.Root,
 		"kwilBlock", rd.Request.BlockHeight, "prioritize", prioritize,
 		"extraTipInGwei", extraTipInGwei)
@@ -483,7 +485,7 @@ func (u *EVMUploader) FollowTx(ctx context.Context, rd *Reward) (bool, error) {
 		if currentBlock-rd.Result.PostBlock > numOfWaitTooLong {
 			slog.Info("reward has pending too long, prioritize it",
 				"root", rd.Request.Root, "waited", currentBlock-rd.Result.PostBlock)
-			return included, u.postReward(ctx, rd, 2, true)
+			return included, u.postReward(ctx, rd, extraTipInGwei, true)
 		}
 
 		slog.Info("reward tx still pending", "root", rd.Request.Root,
@@ -541,7 +543,8 @@ func (u *EVMUploader) FollowTx(ctx context.Context, rd *Reward) (bool, error) {
 
 }
 
-func NewEVMUploader(rpc string, chainId string, rewardAddr string, kwil KwilAPI, pk *ecdsa.PrivateKey, state *State) (*EVMUploader, error) {
+func NewEVMUploader(rpc string, chainId string, rewardAddr string, kwil KwilAPI,
+	pk *ecdsa.PrivateKey, state *State) (*EVMUploader, error) {
 	client, err := ethclient.Dial(rpc)
 	if err != nil {
 		return nil, fmt.Errorf("create eth cliet: %w", err)
@@ -577,9 +580,9 @@ func NewEVMUploader(rpc string, chainId string, rewardAddr string, kwil KwilAPI,
 }
 
 // getTxOptions returns transaction options.
-// extraTipGwei is the extra tip per gas on top of the estimated tip; if set,
+// extraTipInGwei is the extra tip per gas on top of the estimated tip; if set,
 // the priority fee per gas will increase that amount.
-func (u *EVMUploader) getTxOptions(ctx context.Context, extraTipGwei int64) (*bind.TransactOpts, error) {
+func (u *EVMUploader) getTxOptions(ctx context.Context, extraTipGwei uint64) (*bind.TransactOpts, error) {
 	nonce, err := u.eth.PendingNonceAt(context.Background(), u.signerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("get account nonce: %w", err)
@@ -602,10 +605,9 @@ func (u *EVMUploader) getTxOptions(ctx context.Context, extraTipGwei int64) (*bi
 		return nil, fmt.Errorf("estimate gas tip cap: %w", err)
 	}
 
-	if extraTipGwei > 0 {
-		extraTip := new(big.Int).Mul(big.NewInt(extraTipGwei), big.NewInt(params.GWei))
-		auth.GasTipCap = new(big.Int).Add(tip, extraTip)
-	}
+	// add extra tip
+	extraTip := new(big.Int).Mul(big.NewInt(int64(extraTipGwei)), big.NewInt(params.GWei))
+	auth.GasTipCap = new(big.Int).Add(tip, extraTip)
 
 	return auth, nil
 }
