@@ -1,13 +1,17 @@
-import { keccak256, AbiCoder, toBigInt, getBytes } from "ethers";
+import {keccak256, AbiCoder, toBigInt, getBytes, Interface, BigNumberish} from "ethers";
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
+import {assert} from "chai";
 
 const abiCode = new AbiCoder();
 
+// NOTE: Should we include the Kwil chain ID so we can ensure the root is unique
+// across Kwil networks.
 const MerkleLeafEncoding = ["address", "uint256", "address", "uint256"];
 
 // generate a reward merkle tree with each leaf as `(recipient, amount, contract_address, kwil_block)`
 function genRewardMerkleTree(users: string[], amounts: number[], rewardContract: string, kwilBlock: string): {tree: StandardMerkleTree<any>, amount: bigint} {
+    assert(users.length === amounts.length, "users and amounts should have the same length");
     const values: any[][] = users.map((user, index): any[] => [user, amounts[index].toString(), rewardContract, kwilBlock]);
     const tree = StandardMerkleTree.of(values, MerkleLeafEncoding);
     const total: number = amounts.reduce((sum, current) => sum + current, 0);
@@ -34,36 +38,42 @@ function genRewardLeaf(recipient: string, amount: string, thisAddress: string, k
     return getBytes(keccak256(encodedLeaf))
 }
 
-function genPostRewardMessageHash(rewardRoot: string, rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
-    const encoding = ["bytes32", "uint256", "uint256", "address"];
-    const encodedMsg = abiCode.encode(encoding,
-        [rewardRoot, rewardAmount, nonce, contractAddress]);
-    const messageHashBytes = getBytes(keccak256(encodedMsg))
-    // const messageHash = keccak256(encodedMsg);
-    // expect(messageHash).to.equal(toQuantity(messageHashBytes));
+const RewardContractABI: string[] = [
+    "function postReward(bytes32 rewardRoot, uint256 rewardAmount) external",
+    "function updatePosterFee(uint256 newFee) external",
+    "function rewardPoster(bytes32 root) public view returns (address)",
+];
 
-    return messageHashBytes
+function genPostRewardTxData(root: string, amount: BigNumberish): string {
+    // Create contract interface
+    const iface = new Interface(RewardContractABI);
+    // Encode function data
+    return iface.encodeFunctionData('postReward', [root, amount]);
 }
 
-function genUpdatePosterFeeMessageHash(rewardAmount: bigint, nonce: bigint, contractAddress: string): Uint8Array {
-    const encoding = ["uint256", "uint256", "address"];
-    const encodedMsg = abiCode.encode(encoding,
-        [rewardAmount, nonce, contractAddress]);
-    return getBytes(keccak256(encodedMsg))
+function genUpdatePosterFeeTxData(fee: BigNumberish): string {
+    // Create contract interface
+    const iface = new Interface(RewardContractABI);
+    // Encode function data
+    return iface.encodeFunctionData('updatePosterFee', [fee]);
 }
 
-function genUpdateSignersMessageHash(signers: string[], threshold: number, nonce: bigint, rewardContract: string): Uint8Array {
-    const encoding = ["address[]", "uint8", "uint256", "address"];
-    const encodedMsg = abiCode.encode(encoding,
-        [signers, threshold, nonce, rewardContract]);
-    return getBytes(keccak256(encodedMsg))
+interface KwilReward {
+    root: string;
+    amount: string;
+    signers: string[];
+    signatures: string[];
+    blockHeight: number;
+    leafCount?: number;
 }
 
 export {
     genRewardMerkleTree,
     getMTreeProof,
     genRewardLeaf,
-    genPostRewardMessageHash,
-    genUpdatePosterFeeMessageHash,
-    genUpdateSignersMessageHash
+    genPostRewardTxData,
+    genUpdatePosterFeeTxData,
+    RewardContractABI,
+    // types
+    KwilReward,
 }

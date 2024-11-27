@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { keccak256, AbiCoder, toBigInt, toQuantity } from "ethers";
+import { keccak256, toQuantity } from "ethers";
 import fs from "fs";
 import {MerkleTree} from "merkletreejs";
 
@@ -9,8 +9,8 @@ import {
     genRewardLeaf,
     genPostRewardMessageHash,
     genUpdatePosterFeeMessageHash,
-    genUpdateSignersMessageHash
-} from "../lib.reward";
+    genPostRewardTxData
+} from "../peripheral/lib/reward";
 
 
 // mtjs is a demonstration using merkletreejs to generate OpenZeppelin compatible tree
@@ -107,28 +107,32 @@ describe("MerkleTree", function () {
     });
 })
 
-describe("MessageHash", () => {
-    const networkOwner = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-    const user1 = "0x976EA74026E726554dB657fA54763abd0C3a0aa9";
-    const user2 = "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955";
-    const user3 = "0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f";
-    const user4 = "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720";
-    const user5 = "0xBcd4042DE499D14e55001CcbB24a551F3b954096";
-    const contract = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-
+// Tests for genPostRewardTxData
+describe("genPostRewardTxData", () => {
     const root = "0x2b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb";
+    const functionSelector = "0xeb630dd3";
 
-    it("Should have expect post reward message hash", async () => {
-        expect(toQuantity(genPostRewardMessageHash(root, toBigInt(100), toBigInt(2), contract)))
-            .to.equal("0xc1fd32db667e2a5bf70f256a92fbb3347c5c98f905ea572919df0be34c5bea62");
-    })
-    it("Should have expect update poster fee message hash", async () => {
-        expect(toQuantity(genUpdatePosterFeeMessageHash(toBigInt(100), toBigInt(2), contract)))
-            .to.equal("0xaaa86ba9ad647178686eb14611d0244e0e0ba29dbd5651da3b5e591b5ab657a3");
-    })
-    it("Should have expect update signers message hash", async () => {
-        expect(toQuantity(genUpdateSignersMessageHash([user1, user2, user3], 2, toBigInt(2), contract)))
-            .to.equal("0x1095cf42edb93b4f9e443d4bf8eb37086d930ba174d364ca920c8075ca4cdee7");
-    })
+    it("Should generate correct tx data with number amount", () => {
+        const txData = genPostRewardTxData(root, 100);
+        // First 4 bytes are function selector for postReward(bytes32,uint256)
+        expect(txData.slice(0,10)).to.equal(functionSelector);
+        // Remaining data contains encoded root and amount parameters
+        expect(txData.length).to.equal(138); // 0x + function selector + 32 bytes root + 32 bytes amount
+
+        expect(txData).to.equal("0xeb630dd32b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb0000000000000000000000000000000000000000000000000000000000000064");
+    });
+
+    it("Should generate correct tx data with string amount", () => {
+        const txData = genPostRewardTxData(root, "200");
+        expect(txData.slice(0,10)).to.equal(functionSelector);
+        expect(txData.length).to.equal(138); // 0x + function selector + 32 bytes root + 32 bytes amount
+        expect(txData).to.equal("0xeb630dd32b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb00000000000000000000000000000000000000000000000000000000000000c8");
+    });
+
+    it("Should handle large numbers correctly", () => {
+        const txData = genPostRewardTxData(root, "1000000000000000000"); // 1 ETH in wei
+        expect(txData.slice(0,10)).to.equal(functionSelector);
+        expect(txData.length).to.equal(138); // 0x + function selector + 32 bytes root + 32 bytes amount
+        expect(txData).to.equal("0xeb630dd32b99d11a9a089537b17930650ae00cadce38788df0b095c1e9f350d7088d24bb0000000000000000000000000000000000000000000000000de0b6b3a7640000");
+    });
 });
-

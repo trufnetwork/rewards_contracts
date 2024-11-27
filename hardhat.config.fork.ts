@@ -1,19 +1,25 @@
 import { HardhatUserConfig, vars } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 
-// const ALCHEMY_API_KEY = vars.get("ALCHEMY_API_KEY");
-// const SEPOLIA_PRIVATE_KEY = vars.get("SEPOLIA_PRIVATE_KEY");
+import dotenv from 'dotenv';
+dotenv.config();
+
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
+
+const forkingConfig = {
+        url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+        blockNumber: 7152609,
+        // url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+        // blockNumber: 21272700,
+    };
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
-      gasPrice: 1000000000,
-      mining: {
-        auto: false,
-        interval: 30000, // 30s
-      },
+      forking: forkingConfig,
+      chainId: 11155111,  // chainId must be the same as the forking network
     },
   },
   solidity: {

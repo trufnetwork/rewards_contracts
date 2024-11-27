@@ -8,94 +8,101 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/*
+ * @title RewardDistributor - Kwil Reward distribution contract.
+ * @dev Different roles involved:
+ *      - Signer: Kwil network reward signer service. It signs new reward on Kwil network, and upload the signature
+ *                onto Kwil network, which will be used by Poster to propose/comfirm/execute tx in GnosisSafe.
+ *      - Safe: GnosisSafe wallet. It's the admin role to update contract's state, through `postReward`/`updatePosterFee`.
+ *      - Poster: A 3rd party service dedicated to pose the off-chain transaction through GnosisSafe onto blockchain.
+ *      - User: A wallet which is entitled to claim reward through `claimReward`, providing proofs.
+ */
 contract RewardDistributor is ReentrancyGuard {
-    // isSigner maps all allowed signers to true
-    mapping(address => bool) public isSigner;
-    // signers is the list of allowed signers
-    address[] private signers;
-    // threshold is the minimum number of signatures required to postReward/updatePosterFee/updateSigners
-    uint8 public threshold;
-    // maxAllowedSigners is the maximum number of signers, so there will be a gas cap
-    uint8 constant public maxAllowedSigners = 20;
-    // rewardPoster maps a reward hash(merkle tree root) to the address that posted the root
+    // rewardPoster maps a reward hash(merkle tree root) to the address that initiates the transaction pose the reward on chain.
+    /// @dev Since root(reward hash) is unique, and we've guarded it in postReward,
+    /// we don't need to worry about TX replay.
+    /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block), maybe also
+    /// add kwil_chainID to the encoding?  The unique character is also need by Kwil network, I believe.
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
     // posterFee is the fee that rewardClaimer will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
-    // nonce is for multi-sign updating the state of this contract, to prevent replay attack.
-    // It is incremented every time postReward/updatePosterFee/updateSigners is called.
-    /// @dev claimReward doesn't need nonce, as the rewardRoot is unique.
-    uint256 public nonce;
     // rewardToken is the address of the ERC20 token used for rewards
     IERC20 immutable public rewardToken;
     // postedRewards is the total amount of rewards posted to the contract.
     // It can never exceed the total balance of the token owned by the contract.
     uint256 public postedRewards;
+    // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
+    address public safe;
+    // nonce is used to prevent off-chain tx replay, used by updatePosterFee.
+    uint256 public nonce;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
-    event PosterFeeUpdated(uint256 newFee);
-    event SignersUpdated(address[] newSigners, uint8 newThreshold);
+    event PosterFeeUpdated(uint256 newFee, uint256 nonce);
 
-    constructor(address[] memory _allowedSigners, uint8 _threshold, uint256 _posterFee, IERC20 _rewardToken) {
-        require(_allowedSigners.length <= maxAllowedSigners, "Too many signers");
-        require(_threshold <= _allowedSigners.length, "Threshold must be less than or equal to the number of signers");
-        require(_threshold > 0, "Threshold must be greater than 0");
+    /// @dev should be called by network owner
+    constructor(address _safe, uint256 _posterFee, address _rewardToken) {
+        require(_safe != address(0), "ZERO ADDRESS");
+        require(_rewardToken != address(0), "ZERO ADDRESS");
+        require(_posterFee > 0, "PostFee zero");
 
-        for (uint256 i; i < _allowedSigners.length; i++) {
-            require(_allowedSigners[i] != address(0), "Invalid signer");
-            require(!isSigner[_allowedSigners[i]], "Duplicate signer");
-
-            isSigner[_allowedSigners[i]] = true;
-        }
-
-        threshold = _threshold;
         posterFee = _posterFee;
-        rewardToken = _rewardToken;
-        signers = _allowedSigners;
+        rewardToken = IERC20(_rewardToken);
+        safe = _safe;
     }
 
     /// This function adds new reward record to the contract.
     /// It requires at least threshold signatures from allowed signers.
     /// @dev It's called by network rewardPoster.
-    function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] calldata signatures) external {
-        require(rewardAmount > 0, "Total amount must be greater than 0");
-        require(signatures.length >= threshold, "Not enough signatures");
-        require(rewardPoster[rewardRoot] == address(0), "Reward root already posted");
-        require(rewardToken.balanceOf(address(this)) >= postedRewards + rewardAmount, "Insufficient contract balance for reward amount");
+    /// @dev Since rewardRoot is unique, it can also prevent tx replay.
+    /// @dev We can also add a parameter 'nonce', but seems not necessary since rewardRoot is unique.
+    function postReward(bytes32 rewardRoot, uint256 rewardAmount) external {
+        require(msg.sender == safe, "Not allowed");
+        require(rewardAmount > 0, "Total amount zero");
+        require(rewardPoster[rewardRoot] == address(0), "Already posted");
+        require(rewardToken.balanceOf(address(this)) >= postedRewards + rewardAmount, "Insufficient contract reward balance");
 
-        bytes32 messageHash = keccak256(abi.encode(rewardRoot, rewardAmount, nonce, address(this)));
-        address[] memory memSigners = new address[](signatures.length);
-        for (uint256 i; i < signatures.length; i++) {
-            // MessageHashUtils.toEthSignedMessageHash to prepend EIP-191 prefix, since client uses `personal_sign`
-            address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
-            require(isSigner[signer], "Invalid signer");
-            memSigners[i] = signer;
-        }
-
-        // verify that the signers are unique
-        // This is needed since mappings cannot be used in memory in Solidity
-        for (uint256 i; i < memSigners.length; i++) {
-            for (uint256 j = i + 1; j < memSigners.length; j++) {
-                require(memSigners[i] != memSigners[j], "Duplicate signer");
-            }
-        }
-
-        rewardPoster[rewardRoot] = msg.sender;
+        rewardPoster[rewardRoot] = tx.origin; // whoever initiate this TX through gnosis-safe
         postedRewards += rewardAmount;
-        nonce++;
 
         emit RewardPosted(rewardRoot, rewardAmount, msg.sender);
+    }
+
+    /// This function updates the fee that rewardPoster will be paid.
+    /// It must be signed by at least threshold signers.
+    function updatePosterFee(uint256 newFee, uint256 _nonce) external {
+        require(msg.sender == safe, "Not allowed");
+        require(newFee > 0, "Fee zero");
+        require(nonce == _nonce, "Nonce does not match");
+
+        posterFee = newFee;
+        nonce += 1;
+
+        emit PosterFeeUpdated(newFee, nonce-1);
     }
 
     /// This allows a user to claim reward by providing the leaf data and
     /// correspond Merkle proof, on behalf of the recipient.
     /// The reward must be posted and not already claimed.
-    /// @dev There is no reimbursement for whoever call this function, it's settled off-chain.
     /// @dev This is only way to transfer reward token out of this contract.
     /// @dev This is called by a rewardClaimer, not necessarily the recipient.
-    function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] calldata proof) external payable nonReentrant {
+    ///      and there is no reimbursement for whoever is not the recipient call
+    ///      this function, it's settled off-chain.
+    /// @dev Since we need to transfer reward token to the recipient encoded in the Merkle tree,
+    ///      we have to generate and verify the leaf in the contract to ensure the authenticity.
+    function claimReward(
+        address recipient,
+        uint256 amount,
+        uint256 kwilBlock,
+        bytes32 rewardRoot,
+        bytes32[] calldata proof
+    )
+        external
+        payable
+        nonReentrant
+    {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
@@ -113,7 +120,7 @@ contract RewardDistributor is ReentrancyGuard {
 
         // Use call to transfer ETH to the poster (recommended for flexibility with gas limits)
         (bool success, ) = poster.call{value: posterFee}("");
-        
+
         require(success, "Poster reward transfer failed");
 
         // Refund any excess ETH to the caller if applicable
@@ -128,56 +135,6 @@ contract RewardDistributor is ReentrancyGuard {
 
         require(rewardToken.transfer(recipient, amount), "Token transfer failed");
         emit RewardClaimed(recipient, amount, msg.sender);
-    }
-
-    /// This function updates the fee that rewardPoster will be paid.
-    /// It must be signed by at least threshold signers.
-    function updatePosterFee(uint256 newFee, bytes[] calldata signatures) external {
-        require(newFee > 0, "Fee must be greater than 0");
-        require(signatures.length >= threshold, "Not enough signatures");
-
-        bytes32 messageHash = keccak256(abi.encode(newFee, nonce, address(this)));
-        for (uint256 i; i < signatures.length; i++) {
-            address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
-            require(isSigner[signer], "Invalid signer");
-        }
-
-        posterFee = newFee;
-        nonce++;
-
-        emit PosterFeeUpdated(newFee);
-    }
-
-    /// updateSigners updates the list of allowed signers and the threshold.
-    /// It must be signed by at least threshold signers.
-    function updateSigners(address[] calldata newSigners, uint8 newThreshold, bytes[] calldata signatures) external {
-        require(newSigners.length <= maxAllowedSigners, "Too many signers");
-        require(newThreshold <= newSigners.length, "Threshold must be less than or equal to the number of signers");
-        require(newThreshold > 0, "Threshold must be greater than 0");
-        require(signatures.length >= threshold, "Not enough signatures");
-
-        bytes32 messageHash = keccak256(abi.encode(newSigners, newThreshold, nonce, address(this)));
-        for (uint256 i; i < signatures.length; i++) {
-            address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(messageHash), signatures[i]);
-            require(isSigner[signer], "Invalid signer");
-        }
-
-        for (uint256 i; i < signers.length; i++) {
-            delete isSigner[signers[i]];
-        }
-
-        for (uint256 i; i < newSigners.length; i++) {
-            require(newSigners[i] != address(0), "Invalid new signer");
-            require(!isSigner[newSigners[i]], "Duplicate new signer");
-
-            isSigner[newSigners[i]] = true;
-        }
-
-        signers = newSigners;
-        threshold = newThreshold;
-        nonce++;
-
-        emit SignersUpdated(newSigners, newThreshold);
     }
 
     /// unpostedRewards is the total amount of rewards that are owned by the contract
@@ -196,42 +153,3 @@ contract RewardDistributor is ReentrancyGuard {
         revert("Ether transfers not allowed");
     }
 }
-
-//// for echidna
-//contract TestRewardDistributor {
-//    // Extracted function to return the signers array
-//    function _getSigners() internal pure returns (address[] memory) {
-//        address[] memory addrs = new address[](3);
-//        addrs[0] = 0x6Ecbe1DB9EF729CBe972C83Fb886247691Fb6beb;
-//        addrs[1] = 0xE36Ea790bc9d7AB70C55260C66D52b1eca985f84;
-//        addrs[2] = 0xE834EC434DABA538cd1b9Fe1582052B880BD7e63;
-//        return addrs;
-//    }
-//
-////    // Constructor to initialize the parent contract with the necessary parameters
-////    constructor() RewardDistributor(
-////    _getSigners(),
-////    2,
-////    4000,
-////    IERC20(0x1D7022f5B17d2F8B695918FB48fa1089C9f85401)
-////    ) {}
-//
-//RewardDistributor private rd;
-//
-//    constructor() {
-//    rd = RewardDistributor(
-//    _getSigners(),
-//    2,
-//    4000,
-//    IERC20(0x1D7022f5B17d2F8B695918FB48fa1089C9f85401)
-//    );
-//    }
-//
-////    function echidna_threshold_less_equal_than_signers() public view returns (bool) {
-////        return threshold < signers.length;
-////    }
-////
-////    function echidna_token_wont_change() public view returns (bool) {
-////        return token == IERC20(0x1dC4c1cEFEF38a777b15aA20260a54E584b16C48);
-////    }
-//}

@@ -1,4 +1,4 @@
-package uploader
+package poster
 
 import (
 	"context"
@@ -201,8 +201,8 @@ func TestUploader_hardhat_first_reward(t *testing.T) {
 	}
 
 	api := &mockKwilApi{
-		signers:     testWallets[1:4], // need to be the same as deploy.ts
-		users:       testWallets[6:9], // need to be the same as deploy.ts
+		signers:     testWallets[1:4], // need to be the same as deploy_reward.ts
+		users:       testWallets[6:9], // need to be the same as deploy_reward.ts
 		amounts:     []uint{100, 200, 100},
 		contract:    *contract,
 		block:       10,
@@ -273,8 +273,8 @@ func TestUploader_hardhat_run(t *testing.T) {
 	}
 
 	api := &mockKwilApi{
-		signers:     testWallets[1:4], // need to be the same as deploy.ts
-		users:       testWallets[6:9], // need to be the same as deploy.ts
+		signers:     testWallets[1:4], // need to be the same as deploy_reward.ts
+		users:       testWallets[6:9], // need to be the same as deploy_reward.ts
 		amounts:     []uint{100, 200, 100},
 		contract:    *contract,
 		block:       37,
@@ -296,4 +296,10 @@ func TestUploader_hardhat_run(t *testing.T) {
 	uploader.Start(ctx)
 
 	time.Sleep(time.Minute * 7)
+}
+
+func TestEventTopic(t *testing.T) {
+	fmt.Println("RewardPosted", RewardPostedTopic.String())
+	fmt.Println("RewardClaimed", RewardClaimedTopic.String())
+	fmt.Println("PosterFeeUpdated", PosterFeeUpdatedTopic.String())
 }

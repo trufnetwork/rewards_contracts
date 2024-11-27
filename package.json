@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.15"
+    "hardhat": "^2.22.16"
   },
   "name": "kwil-solidity",
   "version": "0.0.1",
@@ -9,6 +9,9 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.1.0",
     "@openzeppelin/merkle-tree": "^1.0.7",
+    "@safe-global/api-kit": "^2.5.4",
+    "@safe-global/protocol-kit": "^5.0.4",
+    "@safe-global/sdk-starter-kit": "^1.0.4",
     "adm-zip": "^0.4.16",
     "agent-base": "^6.0.2",
     "aggregate-error": "^3.1.0",
@@ -55,6 +58,7 @@
     "decamelize": "^4.0.0",
     "depd": "^2.0.0",
     "diff": "^5.2.0",
+    "dotenv": "^16.4.5",
     "elliptic": "^6.5.4",
     "emoji-regex": "^8.0.0",
     "enquirer": "^2.4.1",
@@ -129,6 +133,8 @@
     "path-parse": "^1.0.7",
     "pbkdf2": "^3.1.2",
     "picomatch": "^2.3.1",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
     "randombytes": "^2.1.0",
     "raw-body": "^2.5.2",
     "readable-stream": "^3.6.2",
@@ -141,7 +147,7 @@
     "safer-buffer": "^2.1.2",
     "scrypt-js": "^3.0.1",
     "secp256k1": "^4.0.3",
-    "semver": "^6.3.1",
+    "semver": "^7.5.4",
     "serialize-javascript": "^6.0.2",
     "setimmediate": "^1.0.5",
     "setprototypeof": "^1.2.0",
@@ -183,10 +189,15 @@
     "yocto-queue": "^0.1.0"
   },
   "scripts": {
-    "test": "npx hardhat test",
-    "test:gas": "npx hardhat test --grep 'Gas Fee'",
-    "test:redeploy": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy.ts --network localhost",
-    "test:node": "npx hardhat node --config hardhat.config.test.ts"
+    "test:dist": "npx hardhat test test/RewardDistributor.ts",
+    "test:lib_reward": "npx hardhat test test/lib_reward.ts",
+    "test:gas": "npx hardhat test --grep 'Gas Fee without GnosisSafe'",
+    "test:poster:sepolia": "npx hardhat test test/poster_sepolia.ts --network sepolia",
+    "redeploy:local": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy_reward.ts --network localhost",
+    "redeploy:sepolia": "rm -rf ./ignition/deployments/chain-11155111; npx hardhat run scripts/deploy_reward.ts --network sepolia",
+    "fork:sepolia": "npx hardhat node --fork $(grep SEPOLIA_ALCHEMY_RPC .env | cut -d '\"' -f2) --fork-block-number 7152609",
+    "fork:deploy_safe": "npx hardhat run scripts/deploy_safe_fork.ts --config  hardhat.config.fork.ts",
+    "build": "tsc build --noEmit"
   },
   "author": "",
   "license": "ISC",
