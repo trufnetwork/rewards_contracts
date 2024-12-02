@@ -189,15 +189,25 @@
     "yocto-queue": "^0.1.0"
   },
   "scripts": {
-    "test:dist": "npx hardhat test test/RewardDistributor.ts",
+    "test:reward": "npx hardhat test test/RewardDistributor.ts",
     "test:lib_reward": "npx hardhat test test/lib_reward.ts",
     "test:gas": "npx hardhat test --grep 'Gas Fee without GnosisSafe'",
     "test:poster:sepolia": "npx hardhat test test/poster_sepolia.ts --network sepolia",
     "redeploy:local": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy_reward.ts --network localhost",
     "redeploy:sepolia": "rm -rf ./ignition/deployments/chain-11155111; npx hardhat run scripts/deploy_reward.ts --network sepolia",
     "fork:sepolia": "npx hardhat node --fork $(grep SEPOLIA_ALCHEMY_RPC .env | cut -d '\"' -f2) --fork-block-number 7152609",
-    "fork:deploy_safe": "npx hardhat run scripts/deploy_safe_fork.ts --config  hardhat.config.fork.ts",
+    "fork:deploy_safe": "npx hardhat run scripts/deploy_safe_fork.ts --config hardhat.config.sepolia.ts",
     "build": "tsc build --noEmit"
+  },
+  "scriptsComments": {
+    "test:reward": "reward contract unit tests",
+    "test:lib_reward": "reward libary unit tests",
+    "test:gas": "display gas consumption of interacting with Reward contract(without GnosisSafe)",
+    "test:poster:sepolia": "run poster to post a new Reward to Sepolia network, require a valid .env file",
+    "redeploy:local": "redeploy Reward contract(with token) to local Hardhat node",
+    "redeploy:sepolia": "redeploy Reward contract(with tokwn) to Sepolia test network",
+    "fork:sepolia": "fork Sepolia network locally",
+    "fork:deploy_safe": "deploy a Gnosis Safe wallet on forked local Sepolia network"
   },
   "author": "",
   "license": "ISC",

@@ -35,7 +35,7 @@ describe("Poster with GnosisSafe", () => {
 
         const oldPostedReward = await rd.postedRewards();
 
-        const kwilBlockHeight = 18; // change this to generate a unique Kwil reward
+        const kwilBlockHeight = 2; // change this to generate a unique Kwil reward
         const userRewardAmount = 11;
         console.log(`stub a Kwil reward at Kwil block height ${kwilBlockHeight} with ${userRewardAmount} reward tokens`);
 

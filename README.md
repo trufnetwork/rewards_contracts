@@ -1,28 +1,13 @@
-# Sample Hardhat Project
-
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
-
+Kwil cross-network reward distribution platform.
 
 ## The workflow of distributing Kwil Reward
-
-![sequence diagram](https://mermaid-js.github.io/mermaid-live-editor/edit#pako:eNqNVMtu2zAQ_JWFTikqF2mBXHQIYKTuA0WKokl7CHwIQ65owhKp8hHHCPLvXT6kRHEa1PBB2hnO7qyWe19xI7BqKod_AmqOHxWTlvVrDfRbcm8sBGAOfjm0OTgw6xVXA9MethH6tlPdU76LwQsl9Xgih4cY_mGcf0lIRvCzNk65C9biIcG1SZWwo9Xv8zeHBBvxn7hjVhRG5ljkBMobdnRcA_0_nJzU8O59UfhuPIJVcuPBtBCa5DM5AqWpUsa9MkUpwOL09C1sG_gKu5iy35N6TJjxbcQXUWTZJckamJQWGaVQnvSAB2uRDg5olSmnUIuXSo1lHtfzOjtsU5muKe0FKvZW8dIuN9X3CT3fUBYtlJYv1UgKuVXAmYYbBBf1xKRDpDEL-A3OJFKamGVJ3kYIbvYQhs6wlDGqMR8svmIxG3xucfoUQ1NmZe5xeNWjm5kcRpNudDlERQHewOryy0xQUjprCEe4vAOmqTFGt8r29JqJMnUlqRKDBqSLivR1xT4K0jPeIQ8eJ6-P0quMxAnVRi_MbroaMnNc28AZI8nrKHJpmXZ58q5Lz9vMsyMtOsnmCsOW8qLS6jYO2XXGUxfFE51EkxMrXqnz0HlFH_sw8RPXowmLbjDa4avj-58XbeU3_7xnk1feMdU_N1tu2szqWSROXqmyqq56tD1TgjbcfQyvKxrnHtdVQ48CW0bO19VaPxCVBW8u9ppXjbcB6yoMgq5uWYhV07LOTdGVULTTpiBtoCtjHkmY4PO8WtOGrStrgtwUxsNf38K7tw)
 
 ```mermaid
 sequenceDiagram
     Actor u as User
     participant k as Kwil
-    Actor s as Signer
-    Actor p as Poster
+    participant s as SignerService
+    participant p as PosterService
     participant g as GnosisSafe
     participant sf as Safe(EVM)
     participant r as Reward(EVM)
@@ -62,3 +47,23 @@ sequenceDiagram
     r ->>- u: Event `RewardClaimed`
     end
 ```
+
+## Development
+
+Since we're using GnosisSafe, and it's hard to deploy a local full stack GnosisSafe
+service, we're going to use GnosisSafe on Sepolia.
+
+First copy `.env.example` to `.env` and fill in your mnemonic. Make sure you have
+enough ETH(0.1 is enough) on Sepolia.
+
+Go https://app.safe.global/home and create a GnosisSafe Wallet on Sepolia network, with
+the first three derived wallets as the owners of the GnosisSafe Wallet, those wallets
+will be used in the tests/scripts.
+
+After that, run `npm run redeploy:sepolia` to deploy RewardDistributor contract to
+the Sepolia network. This will also deploy a mock erc20 token as the reward token.
+Then put the contract address and Safe address to .env file.
+
+Now you have everything except the Kwil network API. We're going to mock it in the tests.
+Run `npm run test:poster:sepolia` will actually post/claim a stub Reward.
+NOTE: you need to modify `kwilBlockHeight` everytime you run the test.
