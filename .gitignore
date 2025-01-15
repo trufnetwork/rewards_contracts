@@ -26,3 +26,5 @@ ignition/deployments/*/build-info
 # misc
 bin/
 test/GnosisSafeRewardDistributor.ts
+peripheral/goimpl/go.work
+peripheral/goimpl/go.work.sum

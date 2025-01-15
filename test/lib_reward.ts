@@ -7,8 +7,6 @@ import {
     genRewardMerkleTree,
     getMTreeProof,
     genRewardLeaf,
-    genPostRewardMessageHash,
-    genUpdatePosterFeeMessageHash,
     genPostRewardTxData
 } from "../peripheral/lib/reward";
 

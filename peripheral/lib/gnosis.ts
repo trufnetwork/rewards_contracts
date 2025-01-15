@@ -7,6 +7,8 @@ import {
 
 import {genPostRewardTxData, genUpdatePosterFeeTxData} from "./reward";
 import {RequestArguments} from "@safe-global/protocol-kit/dist/src/types/safeProvider";
+import {number} from "io-ts";
+import {cons} from "fp-ts/es6/Array";
 
 type Eip1193Provider = {
     request: (args: RequestArguments) => Promise<unknown>;
@@ -35,7 +37,7 @@ class RewardSafe {
     }
 
     // generate a GnosisSafe transaction hash to call `postReward` function on RewardContract
-    async genPostRewardSafeTx(root: string, amount: BigNumberish) {
+    async genPostRewardSafeTx(root: string, amount: BigNumberish, nonce?: number) {
         const safe = await Safe.init({
             provider: this.rpc,
             safeAddress: this.safeAddress,
@@ -48,11 +50,23 @@ class RewardSafe {
             operation: OperationType.Call
         }
 
+        console.log('----------txData', txData)
+
         const transactions = [txData];
 
         const safeTx = await safe.createTransaction({
-            transactions: transactions
+            transactions: transactions,
+            options: {
+                // safeTxGas?: string;
+                // baseGas?: string;
+                // gasPrice?: string;
+                // gasToken?: string;
+                // refundReceiver?: string;
+                nonce: nonce,
+            },
         })
+
+        console.log('----------safeTx', safeTx)
 
         const safeTxHash = await safe.getTransactionHash(safeTx);
         return {safeTx, transactions, safeTxHash}
@@ -82,14 +96,14 @@ class RewardSafe {
 
     // generate the signature for a new transaction to upload Reward.
     // As long as we have signature, we can propose/confirm a transaction from non-signer wallet.
-    async signPostReward(root: string, amount: BigNumberish, signerPK: string) : Promise<{safeTxHash: string, signature: string}> {
+    async signPostReward(root: string, amount: BigNumberish, signerPK: string, nonce?: number) : Promise<{safeTxHash: string, signature: string}> {
         const safeSigner = await Safe.init({
             provider: this.rpc,
             safeAddress: this.safeAddress,
             signer: signerPK
         })
 
-        const {safeTxHash} = await this.genPostRewardSafeTx(root, amount);
+        const {safeTxHash} = await this.genPostRewardSafeTx(root, amount, nonce);
         const safeSignature = await safeSigner.signHash(safeTxHash)
         return {safeTxHash, signature: safeSignature.data}
     }
