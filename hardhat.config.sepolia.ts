@@ -5,23 +5,21 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
-const SEPOLIA_MNEMONIC = process.env.SEPOLIA_MNEMONIC;
+
+const forkingConfig = {
+        url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+        blockNumber: 7152609,
+        // url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+        // blockNumber: 21272700,
+    };
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
-      gasPrice: 1000000000,
-    },
-    sepolia: {
-      url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      // accounts: [SEPOLIA_PRIVATE_KEY]
-      accounts: {
-        mnemonic: SEPOLIA_MNEMONIC,
-        initialIndex: 0,
-        count: 4,
-      }
+      forking: forkingConfig,
+      chainId: 11155111,  // chainId must be the same as the forking network
     },
   },
   solidity: {
