@@ -200,7 +200,7 @@
     "build": "tsc build --noEmit"
   },
   "scriptsComments": {
-    "test:reward": "reward contract unit tests",
+    "test:reward": "contract unit tests",
     "test:lib_reward": "reward libary unit tests",
     "test:gas": "display gas consumption of interacting with Reward contract(without GnosisSafe)",
     "test:poster:sepolia": "run poster to post a new Reward to Sepolia network, require a valid .env file",

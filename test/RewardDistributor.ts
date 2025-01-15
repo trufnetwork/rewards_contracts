@@ -20,9 +20,9 @@ describe("Sign message", () => {
     });
 })
 
-// Unit tests on RewardDistributor contract, without using GnosisSafe.
-// Thus the safe wallet will be acting as poster wallet, e.g.
-// `safe -> rewardContract` instead of `poster -> safe -> rewardContract`
+// Unit tests for RewardDistributor contract, without using GnosisSafe.
+// Thus, the poster wallet will be acting as safe wallet, i.e.,
+// `poster -> rewardContract` instead of `poster -> safe -> rewardContract`
 describe("RewardDistributor UnitTest", function () {
     if  (hre.network.name != "hardhat") {
         console.log("Only work on forking network. Skip on network: " + hre.network.name);
@@ -374,8 +374,8 @@ describe("RewardDistributor UnitTest", function () {
     });
 
 
-    // This just show the gas cost with different threshold signature.
-    // To simplify tests, threshold = len(merkle tree leafs)
+    // This is not a test, it just shows the gas cost with different threshold signature.
+    // To simplify, `threshold` equals `len(merkle tree leafs)`
     describe("Gas Fee without GnosisSafe", function () {
         async function testGasFee(threshold: number) {
             console.log("With threshold(also merkle tree leafs) = ", threshold);

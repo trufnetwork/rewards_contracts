@@ -8,25 +8,27 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/*
+/**
  * @title RewardDistributor - Kwil Reward distribution contract.
  * @dev Different roles involved:
- *      - Signer: Kwil network reward signer service. It signs new reward on Kwil network, and upload the signature
- *                onto Kwil network, which will be used by Poster to propose/comfirm/execute tx in GnosisSafe.
- *      - Safe: GnosisSafe wallet. It's the admin role to update contract's state, through `postReward`/`updatePosterFee`.
- *      - Poster: A 3rd party service dedicated to pose the off-chain transaction through GnosisSafe onto blockchain.
- *      - User: A wallet which is entitled to claim reward through `claimReward`, providing proofs.
+ * - SignerService: Kwil network reward signer service. It signs new reward on Kwil network, and upload the signature
+ *   onto Kwil network, which will be used by PosterService to propose/comfirm/execute tx in GnosisSafe.
+ * - Safe: GnosisSafe wallet. It's the admin role to update contract's state, through `postReward`/`updatePosterFee`.
+ * - PosterService: A 3rd party service dedicated to pose the off-chain transaction through GnosisSafe onto blockchain.
+ * - User: A wallet which is entitled to claim reward through `claimReward`, providing proofs.
+ * @dev A reward in this contract is the aggregation of multiple rewards in a kwil epoch; a merkle tree is generated
+ * from those rewards and it's referenced by the merkle tree root. In this contract, we store the root of the tree.
  */
 contract RewardDistributor is ReentrancyGuard {
-    // rewardPoster maps a reward hash(merkle tree root) to the address that initiates the transaction pose the reward on chain.
+    /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
     /// @dev Since root(reward hash) is unique, and we've guarded it in postReward,
     /// we don't need to worry about TX replay.
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block), maybe also
-    /// add kwil_chainID to the encoding?  The unique character is also need by Kwil network, I believe.
+    /// add kwil_chainID to the encoding?  The unique character of the merkle tree is also need by Kwil network, I believe.
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
-    // posterFee is the fee that rewardClaimer will pay to the 'rewardPoster' on each claim
+    // posterFee is the fee that User will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
     // rewardToken is the address of the ERC20 token used for rewards
     IERC20 immutable public rewardToken;
@@ -42,7 +44,9 @@ contract RewardDistributor is ReentrancyGuard {
     event RewardClaimed(address recipient, uint256 amount, address claimer);
     event PosterFeeUpdated(uint256 newFee, uint256 nonce);
 
-    /// @dev should be called by network owner
+    /// @param _safe The GnosisSafe wallet address.
+    /// @param _posterFee The fee for a poster post reward on chain.
+    /// @param _rewardToken The erc20 reward token address.
     constructor(address _safe, uint256 _posterFee, address _rewardToken) {
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
@@ -53,25 +57,25 @@ contract RewardDistributor is ReentrancyGuard {
         safe = _safe;
     }
 
-    /// This function adds new reward record to the contract.
-    /// It requires at least threshold signatures from allowed signers.
     /// @dev It's called by network rewardPoster.
-    /// @dev Since rewardRoot is unique, it can also prevent tx replay.
-    /// @dev We can also add a parameter 'nonce', but seems not necessary since rewardRoot is unique.
-    function postReward(bytes32 rewardRoot, uint256 rewardAmount) external {
+    /// @dev Since root is unique, it can also prevent tx replay.
+    /// @dev We can also use 'nonce', but seems not necessary since rewardRoot is unique.
+    /// @param root The merkle tree root of an epoch reward.
+    /// @param amount The total value of this reward.
+    function postReward(bytes32 root, uint256 amount) external {
         require(msg.sender == safe, "Not allowed");
-        require(rewardAmount > 0, "Total amount zero");
-        require(rewardPoster[rewardRoot] == address(0), "Already posted");
-        require(rewardToken.balanceOf(address(this)) >= postedRewards + rewardAmount, "Insufficient contract reward balance");
+        require(amount > 0, "Total amount zero");
+        require(rewardPoster[root] == address(0), "Already posted");
+        require(rewardToken.balanceOf(address(this)) >= postedRewards + amount, "Insufficient contract reward balance");
 
-        rewardPoster[rewardRoot] = tx.origin; // whoever initiate this TX through gnosis-safe
-        postedRewards += rewardAmount;
+        rewardPoster[root] = tx.origin; // whoever initiate this TX through gnosis-safe
+        postedRewards += amount;
 
-        emit RewardPosted(rewardRoot, rewardAmount, msg.sender);
+        emit RewardPosted(root, amount, msg.sender);
     }
 
-    /// This function updates the fee that rewardPoster will be paid.
-    /// It must be signed by at least threshold signers.
+    /// @param newFee The new poster fee to be set.
+    /// @param _nonce The nonce to modify the posterFee. This prevents tx replay.
     function updatePosterFee(uint256 newFee, uint256 _nonce) external {
         require(msg.sender == safe, "Not allowed");
         require(newFee > 0, "Fee zero");
@@ -83,21 +87,24 @@ contract RewardDistributor is ReentrancyGuard {
         emit PosterFeeUpdated(newFee, nonce-1);
     }
 
-    /// This allows a user to claim reward by providing the leaf data and
-    /// correspond Merkle proof, on behalf of the recipient.
-    /// The reward must be posted and not already claimed.
-    /// @dev This is only way to transfer reward token out of this contract.
-    /// @dev This is called by a rewardClaimer, not necessarily the recipient.
-    ///      and there is no reimbursement for whoever is not the recipient call
-    ///      this function, it's settled off-chain.
+    /// @notice This allows a user on behalf of the recipient to claim reward by providing
+    /// the leaf data and correspond Merkle proofs. The reward must be existed and not already claimed.
+    /// @dev This is the only method transferring reward token out of this contract.
+    /// @dev On success, the recipient will get some reward tokens. If the caller
+    /// is not the recipient, there is no reimbursement for the caller; if needed, it's settled off-chain.
     /// @dev Since we need to transfer reward token to the recipient encoded in the Merkle tree,
-    ///      we have to generate and verify the leaf in the contract to ensure the authenticity.
+    /// we have to regenerate and verify the leaf in the contract to ensure the authenticity.
+    /// @param recipient The wallet address the reward will be send to.
+    /// @param amount The amount of reward to be claimed.
+    /// @param kwilBlock The block height of Kwil network.
+    /// @param rewardRoot The merkle tree root of the targeting epoch reward.
+    /// @param proofs A list of merkle proofs of the reward leaf node.
     function claimReward(
         address recipient,
         uint256 amount,
         uint256 kwilBlock,
         bytes32 rewardRoot,
-        bytes32[] calldata proof
+        bytes32[] calldata proofs
     )
         external
         payable
@@ -110,7 +117,7 @@ contract RewardDistributor is ReentrancyGuard {
         require(!isRewardClaimed[rewardRoot][leaf], "Reward already claimed");
 
         // verify the Merkle proof
-        require(MerkleProof.verify(proof, rewardRoot, leaf), "Invalid proof");
+        require(MerkleProof.verify(proofs, rewardRoot, leaf), "Invalid proof");
 
         // Optimized payment and refund logic in claimReward
         require(msg.value >= posterFee, "Insufficient payment for poster");
@@ -137,8 +144,7 @@ contract RewardDistributor is ReentrancyGuard {
         emit RewardClaimed(recipient, amount, msg.sender);
     }
 
-    /// unpostedRewards is the total amount of rewards that are owned by the contract
-    /// and have not been posted in a reward root.
+    /// @return The amount of rewards that are owned by contract, yet been posted.
     function unpostedRewards() public view returns (uint256) {
         return rewardToken.balanceOf(address(this)) - postedRewards;
     }
