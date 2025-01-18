@@ -70,9 +70,9 @@ class State {
     async addRewardRecord(...rewards: KwilReward[]) {
         for (const reward of rewards) {
             this.rewards.push({ request: reward });
-            this.index.set(reward.blockHeight!, this.rewards.length - 1);
-            this.pending.push(reward.blockHeight!);
-            this.lastBlock = reward.blockHeight!;
+            this.index.set(reward.createdAt!, this.rewards.length - 1);
+            this.pending.push(reward.createdAt!);
+            this.lastBlock = reward.createdAt!;
         }
 
         this._sync();
@@ -116,8 +116,8 @@ class State {
         // Rebuild index from rewards
         for (let i = 0; i < state.rewards.length; i++) {
             const reward = state.rewards[i];
-            if (reward.request!.blockHeight !== undefined) {
-                state.index.set(reward.request!.blockHeight, i);
+            if (reward.request!.createdAt !== undefined) {
+                state.index.set(reward.request!.createdAt, i);
             }
         }
 

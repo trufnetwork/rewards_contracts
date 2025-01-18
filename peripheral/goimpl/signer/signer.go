@@ -3,7 +3,9 @@ package signer
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -30,18 +32,24 @@ type EpochReward struct {
 	SafeNonce  int64
 	SignHash   []byte
 	ContractID *types.UUID
+	CreatedAt  int64
 	Voters     []string
 }
 
 type FinalizedReward struct {
-	ID           *types.UUID
+	ID         *types.UUID
+	Voters     []string
+	Signatures [][]byte
+	EpochID    *types.UUID
+	CreatedAt  int64
+	//
+	StartHeight  int64
+	EndHeight    int64
 	TotalRewards *decimal.Decimal
 	RewardRoot   []byte
-	Signatures   [][]byte
+	SafeNonce    int64
 	SignHash     []byte
-	EndHeight    int64
-	CreatedAt    int64
-	EpochID      *types.UUID
+	ContractID   *types.UUID
 }
 
 type App struct {
@@ -109,6 +117,10 @@ func (s *App) Vote(ctx context.Context, reward *EpochReward) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("======sig==========%x\n", sig)
+	fmt.Printf("======sigBase64==========%s\n", base64.StdEncoding.EncodeToString(sig))
+	fmt.Printf("======sigBase64URL==========%s\n", base64.URLEncoding.EncodeToString(sig))
 
 	h, err := s.kwil.VoteEpoch(ctx, reward.SignHash, sig)
 	if err != nil {

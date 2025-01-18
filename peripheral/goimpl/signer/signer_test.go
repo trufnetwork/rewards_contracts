@@ -1,7 +1,8 @@
-package signer
+package signer_test
 
 import (
 	"context"
+	"goimpl/signer"
 	"testing"
 	"time"
 
@@ -16,9 +17,9 @@ func TestSigner(t *testing.T) {
 
 	clt, err := client.NewClient(ctx, "http://localhost:8484", opts)
 	require.NoError(t, err)
-	kwil := NewKwilApi(clt, "y_rewards")
+	kwil := signer.NewKwilApi(clt, "y_rewards")
 
-	s, err := NewApp(kwil, "y_rewards", 0, *testPK, 30, NewMemState())
+	s, err := signer.NewApp(kwil, "y_rewards", 0, *testPK, 30, signer.NewMemState())
 	require.NoError(t, err)
 
 	go s.Sync(ctx)

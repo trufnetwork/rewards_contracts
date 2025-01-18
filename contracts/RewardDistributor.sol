@@ -97,7 +97,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// we have to regenerate and verify the leaf in the contract to ensure the authenticity.
     /// @param recipient The wallet address the reward will be send to.
     /// @param amount The amount of reward to be claimed.
-    /// @param kwilBlock The block height of Kwil network.
+    /// @param kwilBlock The block height of Kwil network when the epoch reward was created.
     /// @param rewardRoot The merkle tree root of the targeting epoch reward.
     /// @param proofs A list of merkle proofs of the reward leaf node.
     function claimReward(

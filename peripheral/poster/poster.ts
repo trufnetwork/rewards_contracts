@@ -93,16 +93,16 @@ class EVMPoster {
           // Check if rewards already posted
           // NOTE: we assume rewards returned is in block height ASC order
           for (const req of reqs) {
-            this.logger.info({ root: req.root, kwilBlock: req.blockHeight }, 'New reward')
+            this.logger.info({ root: req.root, kwilBlock: req.createdAt }, 'New reward')
             const poster = await this.rewardContract.rewardPoster(req.root)
 
             if (poster !== ethers.ZeroAddress) {
               this.logger.info({
                 root: req.root,
-                kwilBlock: req.blockHeight
+                kwilBlock: req.createdAt
               }, 'Reward already posted, skipping')
 
-              await this.state.skipResult(req.blockHeight)
+              await this.state.skipResult(req.createdAt)
             }
           }
 
@@ -168,7 +168,7 @@ class EVMPoster {
 
         const tx = await this.eth.getTransaction(txHash);
 
-        await this.state.updateResult(rd.request.blockHeight, {
+        await this.state.updateResult(rd.request.createdAt, {
             hash: txHash,
             fee: (tx!.gasPrice * tx!.gasLimit).toString(),
             gasPrice: tx!.gasPrice.toString(),
@@ -197,7 +197,7 @@ class EVMPoster {
         if (txReceipt!.status === 1) {
             if (currentBlock - txReceipt!.blockNumber! > CONSTANTS.NUM_OF_CONFIRMATION) {
                 this.logger.info({ root: rd.request.root, tx: rd.result!.hash, block: txReceipt!.blockNumber! }, "reward Tx confirmed ")
-                await this.state.updateResult(rd.request.blockHeight, {
+                await this.state.updateResult(rd.request.createdAt, {
                     hash: rd.result!.hash,
                     fee: txReceipt!.fee!.toString(),
                     gasPrice: txReceipt!.gasPrice.toString(),
@@ -218,6 +218,7 @@ class EVMPoster {
         this.logger.info({ tx: rd.result!.hash, waited: currentBlock - rd.result!.postBlock, err: revertMsg }, 'Tx failed',)
     }
 
+    /// this is how the poster should run.
     async _run() {
         setInterval(async () => {
             await this.fetchPendingRewards(); // Should execute both together

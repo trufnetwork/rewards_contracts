@@ -66,6 +66,7 @@ class MockKwilApi implements KwilAPITest {
     const {tree, amount} = genRewardMerkleTree(this.usersAddress, this.amounts, this.rewardAddress, this.block.toString());
     this.trees[tree.root] = JSON.stringify(tree.dump());
 
+
     let sigs: string[] = [];
     for (let i = 0; i < this.signersPK.length; i++) {
         const {signature} = await this.safe.signPostReward(tree.root, amount.toString(), this.signersPK[i])
@@ -73,14 +74,14 @@ class MockKwilApi implements KwilAPITest {
     }
 
     this.block++;
-
+    
     return [
       {
         root: tree.root,
         amount: amount.toString(),
         signers: this.signersAddress,
         signatures: sigs,
-        blockHeight: this.block - 1,
+        createdAt: this.block - 1,
       },
     ];
   }

@@ -63,7 +63,7 @@ interface KwilReward {
     amount: string;
     signers: string[];
     signatures: string[];
-    blockHeight: number;
+    createdAt: number;
     leafCount?: number;
 }
 

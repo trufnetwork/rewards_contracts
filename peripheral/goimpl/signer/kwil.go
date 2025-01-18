@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"goimpl/utils"
+	"golang.org/x/exp/slices"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -79,12 +80,13 @@ func (k *kwilApi) FetchPendingRewards(ctx context.Context, startHeight int64, en
 		if err != nil {
 			return nil, err
 		}
-		prs[i].CreatedAt = int64(v[3].(float64))
 
-		prs[i].ContractID, err = types.ParseUUID(v[4].(string))
+		prs[i].ContractID, err = types.ParseUUID(v[3].(string))
 		if err != nil {
 			return nil, err
 		}
+
+		prs[i].CreatedAt = int64(v[4].(float64))
 	}
 
 	return prs, nil
@@ -138,7 +140,9 @@ func (k *kwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limi
 			return nil, err
 		}
 
-		voters := utils.Map(v[8].([]any), func(v any) string { s, _ := v.(string); return s })
+		ers[i].CreatedAt = int64(v[8].(float64))
+
+		voters := utils.Map(v[9].([]any), func(v any) string { s, _ := v.(string); return s })
 		ers[i].Voters = voters
 	}
 
@@ -166,25 +170,50 @@ func (k *kwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*Finaliz
 			return nil, err
 		}
 
-		frs[i].TotalRewards, err = decimal.NewFromString(v[1].(string))
+		voters := utils.Map(v[1].([]any), func(v any) string { s, _ := v.(string); return s })
+		frs[i].Voters = voters
+
+		signatures := utils.Map(v[2].([]any), func(v any) (sig []byte) {
+			s, _ := v.(string)
+			sig, err = base64.StdEncoding.DecodeString(s)
+			if err != nil {
+				return nil
+			}
+			return sig
+		})
+		if err != nil {
+			return nil, fmt.Errorf("decode signature: %w", err)
+		}
+		frs[i].Signatures = signatures
+
+		frs[i].EpochID, err = types.ParseUUID(v[3].(string))
 		if err != nil {
 			return nil, err
 		}
 
-		frs[i].RewardRoot, err = base64.StdEncoding.DecodeString(v[2].(string))
+		frs[i].CreatedAt = int64(v[4].(float64))
+
+		frs[i].StartHeight = int64(v[5].(float64))
+		frs[i].EndHeight = int64(v[6].(float64))
+
+		frs[i].TotalRewards, err = decimal.NewFromString(v[7].(string))
 		if err != nil {
 			return nil, err
 		}
 
-		frs[i].SignHash, err = base64.StdEncoding.DecodeString(v[4].(string))
+		frs[i].RewardRoot, err = base64.StdEncoding.DecodeString(v[8].(string))
 		if err != nil {
 			return nil, err
 		}
 
-		frs[i].EndHeight = int64(v[5].(float64))
-		frs[i].CreatedAt = int64(v[6].(float64))
+		frs[i].SafeNonce = int64(v[9].(float64))
 
-		frs[i].EpochID, err = types.ParseUUID(v[7].(string))
+		frs[i].SignHash, err = base64.StdEncoding.DecodeString(v[10].(string))
+		if err != nil {
+			return nil, err
+		}
+
+		frs[i].ContractID, err = types.ParseUUID(v[11].(string))
 		if err != nil {
 			return nil, err
 		}
@@ -221,6 +250,34 @@ func (k *kwilApi) VoteEpoch(ctx context.Context, signHash []byte, signature []by
 	return res.String(), nil
 }
 
+func (k *kwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) ([][]byte, error) {
+	procedure := "get_proof"
+	input := []any{signHash, wallet}
+
+	res, err := k.clt.Call(ctx, k.ns, procedure, input)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(res.QueryResult.Values) == 0 {
+		return nil, nil
+	}
+
+	proofs := make([][]byte, len(res.QueryResult.Values))
+	for _, v := range res.QueryResult.Values {
+		fmt.Printf("======proof==========%+v, %T\n", v, v)
+		fmt.Printf("======proof i==========%+v, %T\n", v[0], v[0])
+		ps := v[0].([]any)
+		for i, p := range ps {
+			proofs[i], err = base64.StdEncoding.DecodeString(p.(string))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return proofs, nil
+}
+
 // NOTE: this is copied from erc20-reward-extension/reward/crypto.go
 func EthGnosisSignDigest(digest []byte, key *ecdsa.PrivateKey) ([]byte, error) {
 	sig, err := ethCrypto.Sign(digest, key)
@@ -243,6 +300,7 @@ func EthGnosisVerifyDigest(sig []byte, digest []byte, address []byte) error {
 		return fmt.Errorf("invalid signature V")
 	}
 
+	sig = slices.Clone(sig)
 	sig[ethCrypto.RecoveryIDOffset] -= 31
 
 	pubkeyBytes, err := ethCrypto.Ecrecover(digest, sig)

@@ -21,8 +21,8 @@ describe("Crypto", function () {
     const rpcURL = `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
     const chainID = 11155111n;
 
-    const safeAddress = process.env.SEPOLIA_SAFE_ADDRESS ?? '';
-    const rewardAddress= process.env.SEPOLIA_REWARD_ADDRESS ?? '';
+    const safeAddress = "0xbBeaaA74777B1dc14935f5b7E96Bb0ed6DBbD596";
+    const rewardAddress= "0x55EAC662C9D77cb537DBc9A57C0aDa90eB88132d";
     const [ceo, cfo, eng, poster] = GenHDWallets(mnemonic);
 
     it("Only sign safe tx hash", async () => {
