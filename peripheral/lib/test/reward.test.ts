@@ -8,7 +8,7 @@ import {
     getMTreeProof,
     genRewardLeaf,
     genPostRewardTxData
-} from "../peripheral/lib/reward";
+} from "../reward";
 
 
 // mtjs is a demonstration using merkletreejs to generate OpenZeppelin compatible tree

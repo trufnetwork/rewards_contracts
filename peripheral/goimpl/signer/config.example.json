@@ -1,0 +1,8 @@
+{
+  "kwil_rpc": "",
+  "private_key": "",
+  "kwil_namespace": "",
+  "sync_after_block": 0, //REMOVE: if 0 and state is fresh, sync from latest
+  "sync_every": 10, //REMOVE: seconds
+  "state_file": "" //REMOVE: db file;absolute path
+}

@@ -18,7 +18,6 @@ async function main() {
     console.log("current block: ", await hre.ethers.provider.getBlockNumber())
 
     const [ceo, cfo, eng, poster] = GenHDWallets(actConfig.mnemonic);
-    console.log("==========____", (await hre.ethers.getSigners())[3]);
     const posterSigner = (await hre.ethers.getSigners())[4];
 
     const gSafe = new RewardSafe(hre.network.provider,

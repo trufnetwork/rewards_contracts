@@ -1,9 +1,8 @@
-import Safe, {getSafeWebAuthnSignerFactoryContract} from "@safe-global/protocol-kit";
+import Safe from "@safe-global/protocol-kit";
 import hre from "hardhat";
-import {GenHDWallets} from "../peripheral/lib/wallet";
-import {keccak256} from "ethers";
+import {GenHDWallets} from "../wallet";
 import {expect} from "chai";
-import {RewardSafe} from "../peripheral/lib/gnosis";
+import {RewardSafe} from "../gnosis";
 
 
 /*
@@ -21,8 +20,8 @@ describe("Crypto", function () {
     const rpcURL = `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
     const chainID = 11155111n;
 
-    const safeAddress = process.env.SEPOLIA_SAFE_ADDRESS ?? '';
-    const rewardAddress= process.env.SEPOLIA_REWARD_ADDRESS ?? '';
+    const safeAddress = "0xbBeaaA74777B1dc14935f5b7E96Bb0ed6DBbD596";
+    const rewardAddress= "0x55EAC662C9D77cb537DBc9A57C0aDa90eB88132d";
     const [ceo, cfo, eng, poster] = GenHDWallets(mnemonic);
 
     it("Only sign safe tx hash", async () => {
