@@ -15,21 +15,23 @@ sequenceDiagram
     rect rgba(0, 0, 255, .1)
     Note right of u: User Kwil interaction
     u ->>+ k: I want my reward
-    k ->>- u: Alright, aggreate it in current period
+    k ->>- u: Alright, pending in current epoch
     end
+
+    k ->> k: Propose an epoch reward: <br> Aggregate rewards since last epoch. <br> Generate merkle tree.
 
     rect rgba(0,255,0,.1)
     Note left of s: Signer service
-    s ->>+ k: Fetch pending reward
-    k ->>- s: Reward can be signed
+    s ->>+ k: Fetch pending epoch rewards
+    k ->>- s: Rewards can be voted/signed
     s -->> s: Sign the reward
-    s ->> k: Agree reward by uploading signature
+    s ->> k: Agree/vote reward by uploading signature
     end
 
     rect rgba(255,0,0,.1)
     Note right of p: Poster service
-    p ->>+ k: Fetch pending rewards
-    k ->>- p: Rewards can be posted to ETH
+    p ->>+ k: Fetch pending finalized rewards
+    k ->>- p: Rewards(with enough votes) <br>can be posted to Ethereum
     p ->>+ g: Propose Tx and confirm Tx
     g -->>- p: Tx will be ready to be executed
 

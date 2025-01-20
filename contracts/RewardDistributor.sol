@@ -10,22 +10,16 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title RewardDistributor - Kwil Reward distribution contract.
- * @dev Different roles involved:
- * - SignerService: Kwil network reward signer service. It signs new reward on Kwil network, and upload the signature
- *   onto Kwil network, which will be used by PosterService to propose/comfirm/execute tx in GnosisSafe.
- * - Safe: GnosisSafe wallet. It's the admin role to update contract's state, through `postReward`/`updatePosterFee`.
- * - PosterService: A 3rd party service dedicated to pose the off-chain transaction through GnosisSafe onto blockchain.
- * - User: A wallet which is entitled to claim reward through `claimReward`, providing proofs.
  * @dev A reward in this contract is the aggregation of multiple rewards in a kwil epoch; a merkle tree is generated
  * from those rewards and it's referenced by the merkle tree root. In this contract, we store the root of the tree.
  */
 contract RewardDistributor is ReentrancyGuard {
     /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
+    /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block), maybe also
+    /// add kwil_chainID to the encoding? So that it's unique across multiple Kwil networks.
+    /// What about ethereum chain id? Seems not necessary to me, as the GnosisSafe is chain aware.
     /// @dev Since root(reward hash) is unique, and we've guarded it in postReward,
     /// we don't need to worry about TX replay.
-    /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block), maybe also
-    /// add kwil_chainID to the encoding?  The unique character of the merkle tree is also need by Kwil network, I believe.
-    /// what about ethereum chain id? Seems not necessary, as the GnosisSafe is chain aware.
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
