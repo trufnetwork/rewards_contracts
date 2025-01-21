@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/params"
 	"log/slog"
 	"math/big"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/params"
 
 	"goimpl/reward"
 )
@@ -408,7 +408,7 @@ func (u *EVMUploader) postReward(ctx context.Context, rd *Reward, extraTipInGwei
 	//	// too expensive
 	//}
 
-	tx, err := u.contract.PostReward(txOpt, b32, amount, rd.Request.Signatures)
+	tx, err := u.contract.PostReward(txOpt, b32, amount)
 	if err != nil {
 		return fmt.Errorf("post reward: %w", err)
 	}
@@ -613,7 +613,7 @@ func (u *EVMUploader) getTxOptions(ctx context.Context, extraTipGwei uint64) (*b
 }
 
 func (u *EVMUploader) Start(ctx context.Context) {
-	go Cron("FetchPendingRewards", time.Minute*1, ctx, u.FetchPendingRewards)
+	go Cron("SearchPendingRewards", time.Minute*1, ctx, u.FetchPendingRewards)
 	time.Sleep(time.Second * 13)
 	go Cron("CheckPostingStatus", time.Minute*1, ctx, u.CheckRewardPostingStatus)
 }

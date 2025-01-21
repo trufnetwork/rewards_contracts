@@ -1,4 +1,4 @@
-package signer
+package main
 
 import (
 	"encoding/json"
@@ -13,6 +13,7 @@ type VoteRecord struct {
 	TxHash   string `json:"tx_hash"`
 }
 
+// State is the naive db of singer service.
 type State struct {
 	path string
 
@@ -82,7 +83,11 @@ func LoadStateFromFile(stateFile string) (*State, error) {
 		return nil, err
 	}
 
-	err = json.Unmarshal(data, s)
+	if len(data) == 0 {
+		return s, nil
+	}
+
+	err = json.Unmarshal(data, &s.data)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package signer_test
+package reward
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"goimpl/signer"
 	"os"
 	"testing"
 
@@ -57,18 +56,18 @@ func Test_issue_reward(t *testing.T) {
 	res, err := clt.Execute(ctx, "mydb", procedure, nil)
 	require.NoError(t, err)
 
-	fmt.Printf("issue_reward================%+v\n", res.String())
+	fmt.Printf("TxHash %+v\n", res.String())
 }
 
-func Test_kwilApi_FetchPendingRewards(t *testing.T) {
+func Test_kwilApi_SearchPendingRewards(t *testing.T) {
 	ctx := context.Background()
 
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := signer.NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "y_rewards")
 
-	got, err := k.FetchPendingRewards(ctx, 0, 100000)
+	got, err := k.SearchPendingRewards(ctx, 0, 1000000)
 	require.NoError(t, err)
 
 	for _, r := range got {
@@ -82,7 +81,7 @@ func Test_kwilApi_FetchEpochRewards(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := signer.NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "y_rewards")
 
 	got, err := k.FetchEpochRewards(ctx, 0, 10)
 	require.NoError(t, err)
@@ -98,7 +97,7 @@ func Test_kwilApi_FetchLatestFinalizedReward(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := signer.NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "y_rewards")
 
 	got, err := k.FetchLatestRewards(ctx, 1)
 	require.NoError(t, err)
@@ -116,7 +115,7 @@ func Test_kwilApi_ProposeEpoch(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", opts)
 	require.NoError(t, err)
 
-	k := signer.NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "y_rewards")
 
 	h, err := k.ProposeEpoch(ctx)
 	require.NoError(t, err)
@@ -132,13 +131,13 @@ func Test_kwilApi_VoteEpoch(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", opts)
 	require.NoError(t, err)
 
-	k := signer.NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "y_rewards")
 
 	signHashHex := "dd4bf09c5800ab9bd8a461955f33a13970c1dffd0f57e0063c7da5e982cdb9a0"
 	signHash, err := hex.DecodeString(signHashHex)
 	require.NoError(t, err)
 
-	sig, err := signer.EthGnosisSignDigest(signHash, pk)
+	sig, err := EthGnosisSignDigest(signHash, pk)
 	require.NoError(t, err)
 
 	fmt.Printf("Yaiba.vote.batch.input--------digest:%x, sig:%x\n", signHash, sig)
@@ -157,7 +156,7 @@ func Test_kwilApi_GetProof(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := signer.NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "y_rewards")
 
 	signHashHex := "4c4f2b113a2cd5dee0b529a31df514340af60031dbd0d9424e55c49f5615098f"
 	signHash, err := hex.DecodeString(signHashHex)

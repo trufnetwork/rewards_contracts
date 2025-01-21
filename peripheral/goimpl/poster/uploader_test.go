@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"goimpl/reward"
-	"goimpl/utils"
 	"math/big"
 	"testing"
 	"time"
@@ -78,12 +77,12 @@ func (m *mockKwilApi) FetchRewardRequests(blockHeight uint64, limit int) ([]*Kwi
 	}
 
 	var total uint = 0
-	amounts := utils.Map(m.amounts, func(a uint) string {
+	amounts := reward.Map(m.amounts, func(a uint) string {
 		total += a
 		return fmt.Sprintf("%d", a)
 	})
 
-	users := utils.Map(m.users, func(k testWallet) string {
+	users := reward.Map(m.users, func(k testWallet) string {
 		return k[0]
 	})
 

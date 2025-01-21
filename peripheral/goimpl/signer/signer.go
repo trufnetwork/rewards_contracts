@@ -1,74 +1,49 @@
-package signer
+package main
 
 import (
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"github.com/kwilteam/kwil-db/core/client"
+	clientTypes "github.com/kwilteam/kwil-db/core/client/types"
+	kwilCrypto "github.com/kwilteam/kwil-db/core/crypto"
+	"github.com/kwilteam/kwil-db/core/crypto/auth"
+	"log"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/kwilteam/kwil-db/core/types"
-	"github.com/kwilteam/kwil-db/core/types/decimal"
+
+	"goimpl/reward"
 )
 
-type PendingReward struct {
-	ID         *types.UUID
-	Recipient  string
-	Amount     *decimal.Decimal
-	CreatedAt  int64
-	ContractID *types.UUID
-}
-
-type EpochReward struct {
-	ID           *types.UUID
-	StartHeight  int64
-	EndHeight    int64
-	TotalRewards *decimal.Decimal
-	//MtreeJson    string
-	RewardRoot []byte
-	SafeNonce  int64
-	SignHash   []byte
-	ContractID *types.UUID
-	CreatedAt  int64
-	Voters     []string
-}
-
-type FinalizedReward struct {
-	ID         *types.UUID
-	Voters     []string
-	Signatures [][]byte
-	EpochID    *types.UUID
-	CreatedAt  int64
-	//
-	StartHeight  int64
-	EndHeight    int64
-	TotalRewards *decimal.Decimal
-	RewardRoot   []byte
-	SafeNonce    int64
-	SignHash     []byte
-	ContractID   *types.UUID
+type Config struct {
+	KwilRPC       string `json:"kwil_rpc,omitempty"`
+	PrivateKey    string `json:"private_key,omitempty"`
+	KwilNamespace string `json:"kwil_namespace,omitempty"`
+	// SyncAfterBlock set the starting block to sync. If not set, will start from the latest.
+	SyncAfterBlock int64  `json:"sync_after_block,omitempty"`
+	SyncEvery      int    `json:"sync_every,omitempty"` // seconds
+	StateFile      string `json:"state_file,omitempty"`
 }
 
 type App struct {
-	kwil           KwilRewardExtAPI
-	ns             string
-	pkStr          string
-	pk             *ecdsa.PrivateKey
-	lastSeenHeight int64
-	logger         *slog.Logger
-	every          time.Duration
+	kwil          reward.KwilRewardExtAPI
+	pkStr         string
+	pk            *ecdsa.PrivateKey
+	lastSeenBlock int64
+	logger        *slog.Logger
+	every         time.Duration
 
 	state *State
 }
 
 // NewApp returns a new signer app.
 // If syncFrom=0, it will try sync after the latest finalized reward.
-func NewApp(api KwilRewardExtAPI, ns string, syncFrom int64, pkStr string, everyS int, state *State) (*App, error) {
-	api.SetNs(ns)
-
+func NewApp(api reward.KwilRewardExtAPI, lastBlock int64, pkStr string, everyS int, state *State) (*App, error) {
 	logger := slog.Default()
 
 	privateKey, err := crypto.HexToECDSA(pkStr)
@@ -76,62 +51,63 @@ func NewApp(api KwilRewardExtAPI, ns string, syncFrom int64, pkStr string, every
 		return nil, err
 	}
 
-	if syncFrom == 0 { // try
+	// overwrite parameter lastBlock
+	if len(state.data) > 0 {
+		lastBlock = state.data[len(state.data)-1].Height
+	}
+
+	if lastBlock == 0 { // sync from now
 		frs, err := api.FetchLatestRewards(context.Background(), 1)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("fetch latest finalized reward: %w", err)
 		}
 
 		if len(frs) == 1 {
-			syncFrom = frs[0].EndHeight
-			logger.Info("sync from latest finalized reward", "height", syncFrom)
+			lastBlock = frs[0].EndHeight
+			logger.Info("sync from latest finalized reward", "height", lastBlock)
 		} else {
 			logger.Info("no finalized reward found, sync from height 0")
 		}
 	}
 
 	return &App{
-		lastSeenHeight: syncFrom,
-		kwil:           api,
-		ns:             ns,
-		pkStr:          pkStr,
-		pk:             privateKey,
-		state:          state,
-		logger:         logger,
-		every:          time.Duration(everyS) * time.Second,
+		lastSeenBlock: lastBlock,
+		kwil:          api,
+		pkStr:         pkStr,
+		pk:            privateKey,
+		state:         state,
+		logger:        logger,
+		every:         time.Duration(everyS) * time.Second,
 	}, nil
 }
 
 // Verify verifies if the reward root is correct
-func (s *App) Verify(ctx context.Context, reward *EpochReward) error {
+func (s *App) Verify(ctx context.Context, reward *reward.EpochReward) error {
 	// TODO
 	s.logger.Info("TODO: verify reward", "reward", reward.ID.String(), "rewardRoot", hex.EncodeToString(reward.RewardRoot))
 	return nil
 }
 
 // Vote votes an epoch reward
-func (s *App) Vote(ctx context.Context, reward *EpochReward) error {
+func (s *App) Vote(ctx context.Context, er *reward.EpochReward) error {
 	// TODO: check if already voted
 
-	sig, err := EthGnosisSignDigest(reward.SignHash, s.pk)
+	sig, err := reward.EthGnosisSignDigest(er.SignHash, s.pk)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("======sig==========%x\n", sig)
-	fmt.Printf("======sigBase64==========%s\n", base64.StdEncoding.EncodeToString(sig))
-	fmt.Printf("======sigBase64URL==========%s\n", base64.URLEncoding.EncodeToString(sig))
-
-	h, err := s.kwil.VoteEpoch(ctx, reward.SignHash, sig)
+	h, err := s.kwil.VoteEpoch(ctx, er.SignHash, sig)
 	if err != nil {
 		return err
 	}
 
-	s.lastSeenHeight = reward.EndHeight // update
+	s.lastSeenBlock = er.EndHeight // update
 
-	s.logger.Info("vote reward", "tx", h, "reward", reward.ID.String(), "signHash", hex.EncodeToString(reward.SignHash))
+	s.logger.Info("vote reward", "tx", h, "reward", er.ID.String(),
+		"signHash", hex.EncodeToString(er.SignHash))
 
-	return s.state.VoteReward(reward.EndHeight, reward.SignHash, h)
+	return s.state.VoteReward(er.EndHeight, er.SignHash, h)
 }
 
 func (s *App) Sync(ctx context.Context) {
@@ -140,9 +116,9 @@ func (s *App) Sync(ctx context.Context) {
 	tick := time.NewTicker(s.every)
 
 	for {
-		s.logger.Debug("syncing", "lastSeenHeight", s.lastSeenHeight)
+		s.logger.Debug("syncing", "lastSeenBlock", s.lastSeenBlock)
 		// fetch next batch rewards to be voted, and vote them.
-		brs, err := s.kwil.FetchEpochRewards(ctx, s.lastSeenHeight+1, 1)
+		brs, err := s.kwil.FetchEpochRewards(ctx, s.lastSeenBlock+1, 1)
 		if err != nil {
 			s.logger.Error("fetch batch reward", "error", err.Error())
 		}
@@ -178,4 +154,60 @@ func (s *App) Sync(ctx context.Context) {
 			continue
 		}
 	}
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		log.Fatal("Usage: reward-signer <config>")
+	}
+
+	configPath := os.Args[1]
+
+	configJSON, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var cfg Config
+	err = json.Unmarshal(configJSON, &cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var state *State
+	if cfg.StateFile == "" {
+		state = NewMemState()
+	} else {
+		state, err = LoadStateFromFile(cfg.StateFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	pkBytes, err := hex.DecodeString(cfg.PrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key, err := kwilCrypto.UnmarshalSecp256k1PrivateKey(pkBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	opts := &clientTypes.Options{Signer: &auth.EthPersonalSigner{Key: *key}}
+
+	ctx := context.Background()
+	clt, err := client.NewClient(ctx, cfg.KwilRPC, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	kwil := reward.NewKwilApi(clt, cfg.KwilNamespace)
+
+	s, err := NewApp(kwil, cfg.SyncAfterBlock, cfg.PrivateKey, cfg.SyncEvery, state)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	s.Sync(ctx)
 }

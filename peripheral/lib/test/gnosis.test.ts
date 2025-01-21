@@ -1,9 +1,8 @@
-import Safe, {getSafeWebAuthnSignerFactoryContract} from "@safe-global/protocol-kit";
+import Safe from "@safe-global/protocol-kit";
 import hre from "hardhat";
-import {GenHDWallets} from "../peripheral/lib/wallet";
-import {keccak256} from "ethers";
+import {GenHDWallets} from "../wallet";
 import {expect} from "chai";
-import {RewardSafe} from "../peripheral/lib/gnosis";
+import {RewardSafe} from "../gnosis";
 
 
 /*

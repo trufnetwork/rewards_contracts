@@ -31,7 +31,7 @@ var (
 
 // RewardMetaData contains all meta data concerning the Reward contract.
 var RewardMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"_allowedSigners\",\"type\":\"address[]\"},{\"internalType\":\"uint8\",\"name\":\"_threshold\",\"type\":\"uint8\"},{\"internalType\":\"uint256\",\"name\":\"_posterFee\",\"type\":\"uint256\"},{\"internalType\":\"contractIERC20\",\"name\":\"_rewardToken\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"ECDSAInvalidSignature\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"length\",\"type\":\"uint256\"}],\"name\":\"ECDSAInvalidSignatureLength\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"s\",\"type\":\"bytes32\"}],\"name\":\"ECDSAInvalidSignatureS\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ReentrancyGuardReentrantCall\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newFee\",\"type\":\"uint256\"}],\"name\":\"PosterFeeUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"claimer\",\"type\":\"address\"}],\"name\":\"RewardClaimed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"root\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"poster\",\"type\":\"address\"}],\"name\":\"RewardPosted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address[]\",\"name\":\"newSigners\",\"type\":\"address[]\"},{\"indexed\":false,\"internalType\":\"uint8\",\"name\":\"newThreshold\",\"type\":\"uint8\"}],\"name\":\"SignersUpdated\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"kwilBlock\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"rewardRoot\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32[]\",\"name\":\"proof\",\"type\":\"bytes32[]\"}],\"name\":\"claimReward\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"isRewardClaimed\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"isSigner\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"maxAllowedSigners\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"nonce\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"rewardRoot\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"rewardAmount\",\"type\":\"uint256\"},{\"internalType\":\"bytes[]\",\"name\":\"signatures\",\"type\":\"bytes[]\"}],\"name\":\"postReward\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"postedRewards\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"posterFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"rewardPoster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rewardToken\",\"outputs\":[{\"internalType\":\"contractIERC20\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"threshold\",\"outputs\":[{\"internalType\":\"uint8\",\"name\":\"\",\"type\":\"uint8\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unpostedRewards\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"newFee\",\"type\":\"uint256\"},{\"internalType\":\"bytes[]\",\"name\":\"signatures\",\"type\":\"bytes[]\"}],\"name\":\"updatePosterFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"newSigners\",\"type\":\"address[]\"},{\"internalType\":\"uint8\",\"name\":\"newThreshold\",\"type\":\"uint8\"},{\"internalType\":\"bytes[]\",\"name\":\"signatures\",\"type\":\"bytes[]\"}],\"name\":\"updateSigners\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_safe\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"_posterFee\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"_rewardToken\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"ReentrancyGuardReentrantCall\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"newFee\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"}],\"name\":\"PosterFeeUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"claimer\",\"type\":\"address\"}],\"name\":\"RewardClaimed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"root\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"poster\",\"type\":\"address\"}],\"name\":\"RewardPosted\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"kwilBlock\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"rewardRoot\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32[]\",\"name\":\"proofs\",\"type\":\"bytes32[]\"}],\"name\":\"claimReward\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"isRewardClaimed\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"nonce\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"root\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"postReward\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"postedRewards\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"posterFee\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"rewardPoster\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rewardToken\",\"outputs\":[{\"internalType\":\"contractIERC20\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"safe\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"unpostedRewards\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"newFee\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_nonce\",\"type\":\"uint256\"}],\"name\":\"updatePosterFee\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}]",
 }
 
 // RewardABI is the input ABI used to generate the binding from.
@@ -211,68 +211,6 @@ func (_Reward *RewardCallerSession) IsRewardClaimed(arg0 [32]byte, arg1 [32]byte
 	return _Reward.Contract.IsRewardClaimed(&_Reward.CallOpts, arg0, arg1)
 }
 
-// IsSigner is a free data retrieval call binding the contract method 0x7df73e27.
-//
-// Solidity: function isSigner(address ) view returns(bool)
-func (_Reward *RewardCaller) IsSigner(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
-	var out []interface{}
-	err := _Reward.contract.Call(opts, &out, "isSigner", arg0)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// IsSigner is a free data retrieval call binding the contract method 0x7df73e27.
-//
-// Solidity: function isSigner(address ) view returns(bool)
-func (_Reward *RewardSession) IsSigner(arg0 common.Address) (bool, error) {
-	return _Reward.Contract.IsSigner(&_Reward.CallOpts, arg0)
-}
-
-// IsSigner is a free data retrieval call binding the contract method 0x7df73e27.
-//
-// Solidity: function isSigner(address ) view returns(bool)
-func (_Reward *RewardCallerSession) IsSigner(arg0 common.Address) (bool, error) {
-	return _Reward.Contract.IsSigner(&_Reward.CallOpts, arg0)
-}
-
-// MaxAllowedSigners is a free data retrieval call binding the contract method 0xa54147f4.
-//
-// Solidity: function maxAllowedSigners() view returns(uint8)
-func (_Reward *RewardCaller) MaxAllowedSigners(opts *bind.CallOpts) (uint8, error) {
-	var out []interface{}
-	err := _Reward.contract.Call(opts, &out, "maxAllowedSigners")
-
-	if err != nil {
-		return *new(uint8), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(uint8)).(*uint8)
-
-	return out0, err
-
-}
-
-// MaxAllowedSigners is a free data retrieval call binding the contract method 0xa54147f4.
-//
-// Solidity: function maxAllowedSigners() view returns(uint8)
-func (_Reward *RewardSession) MaxAllowedSigners() (uint8, error) {
-	return _Reward.Contract.MaxAllowedSigners(&_Reward.CallOpts)
-}
-
-// MaxAllowedSigners is a free data retrieval call binding the contract method 0xa54147f4.
-//
-// Solidity: function maxAllowedSigners() view returns(uint8)
-func (_Reward *RewardCallerSession) MaxAllowedSigners() (uint8, error) {
-	return _Reward.Contract.MaxAllowedSigners(&_Reward.CallOpts)
-}
-
 // Nonce is a free data retrieval call binding the contract method 0xaffed0e0.
 //
 // Solidity: function nonce() view returns(uint256)
@@ -428,35 +366,35 @@ func (_Reward *RewardCallerSession) RewardToken() (common.Address, error) {
 	return _Reward.Contract.RewardToken(&_Reward.CallOpts)
 }
 
-// Threshold is a free data retrieval call binding the contract method 0x42cde4e8.
+// Safe is a free data retrieval call binding the contract method 0x186f0354.
 //
-// Solidity: function threshold() view returns(uint8)
-func (_Reward *RewardCaller) Threshold(opts *bind.CallOpts) (uint8, error) {
+// Solidity: function safe() view returns(address)
+func (_Reward *RewardCaller) Safe(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _Reward.contract.Call(opts, &out, "threshold")
+	err := _Reward.contract.Call(opts, &out, "safe")
 
 	if err != nil {
-		return *new(uint8), err
+		return *new(common.Address), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(uint8)).(*uint8)
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 
 	return out0, err
 
 }
 
-// Threshold is a free data retrieval call binding the contract method 0x42cde4e8.
+// Safe is a free data retrieval call binding the contract method 0x186f0354.
 //
-// Solidity: function threshold() view returns(uint8)
-func (_Reward *RewardSession) Threshold() (uint8, error) {
-	return _Reward.Contract.Threshold(&_Reward.CallOpts)
+// Solidity: function safe() view returns(address)
+func (_Reward *RewardSession) Safe() (common.Address, error) {
+	return _Reward.Contract.Safe(&_Reward.CallOpts)
 }
 
-// Threshold is a free data retrieval call binding the contract method 0x42cde4e8.
+// Safe is a free data retrieval call binding the contract method 0x186f0354.
 //
-// Solidity: function threshold() view returns(uint8)
-func (_Reward *RewardCallerSession) Threshold() (uint8, error) {
-	return _Reward.Contract.Threshold(&_Reward.CallOpts)
+// Solidity: function safe() view returns(address)
+func (_Reward *RewardCallerSession) Safe() (common.Address, error) {
+	return _Reward.Contract.Safe(&_Reward.CallOpts)
 }
 
 // UnpostedRewards is a free data retrieval call binding the contract method 0xd5cf76f5.
@@ -492,86 +430,65 @@ func (_Reward *RewardCallerSession) UnpostedRewards() (*big.Int, error) {
 
 // ClaimReward is a paid mutator transaction binding the contract method 0x324e1429.
 //
-// Solidity: function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] proof) payable returns()
-func (_Reward *RewardTransactor) ClaimReward(opts *bind.TransactOpts, recipient common.Address, amount *big.Int, kwilBlock *big.Int, rewardRoot [32]byte, proof [][32]byte) (*types.Transaction, error) {
-	return _Reward.contract.Transact(opts, "claimReward", recipient, amount, kwilBlock, rewardRoot, proof)
+// Solidity: function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] proofs) payable returns()
+func (_Reward *RewardTransactor) ClaimReward(opts *bind.TransactOpts, recipient common.Address, amount *big.Int, kwilBlock *big.Int, rewardRoot [32]byte, proofs [][32]byte) (*types.Transaction, error) {
+	return _Reward.contract.Transact(opts, "claimReward", recipient, amount, kwilBlock, rewardRoot, proofs)
 }
 
 // ClaimReward is a paid mutator transaction binding the contract method 0x324e1429.
 //
-// Solidity: function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] proof) payable returns()
-func (_Reward *RewardSession) ClaimReward(recipient common.Address, amount *big.Int, kwilBlock *big.Int, rewardRoot [32]byte, proof [][32]byte) (*types.Transaction, error) {
-	return _Reward.Contract.ClaimReward(&_Reward.TransactOpts, recipient, amount, kwilBlock, rewardRoot, proof)
+// Solidity: function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] proofs) payable returns()
+func (_Reward *RewardSession) ClaimReward(recipient common.Address, amount *big.Int, kwilBlock *big.Int, rewardRoot [32]byte, proofs [][32]byte) (*types.Transaction, error) {
+	return _Reward.Contract.ClaimReward(&_Reward.TransactOpts, recipient, amount, kwilBlock, rewardRoot, proofs)
 }
 
 // ClaimReward is a paid mutator transaction binding the contract method 0x324e1429.
 //
-// Solidity: function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] proof) payable returns()
-func (_Reward *RewardTransactorSession) ClaimReward(recipient common.Address, amount *big.Int, kwilBlock *big.Int, rewardRoot [32]byte, proof [][32]byte) (*types.Transaction, error) {
-	return _Reward.Contract.ClaimReward(&_Reward.TransactOpts, recipient, amount, kwilBlock, rewardRoot, proof)
+// Solidity: function claimReward(address recipient, uint256 amount, uint256 kwilBlock, bytes32 rewardRoot, bytes32[] proofs) payable returns()
+func (_Reward *RewardTransactorSession) ClaimReward(recipient common.Address, amount *big.Int, kwilBlock *big.Int, rewardRoot [32]byte, proofs [][32]byte) (*types.Transaction, error) {
+	return _Reward.Contract.ClaimReward(&_Reward.TransactOpts, recipient, amount, kwilBlock, rewardRoot, proofs)
 }
 
-// PostReward is a paid mutator transaction binding the contract method 0x0279482c.
+// PostReward is a paid mutator transaction binding the contract method 0xeb630dd3.
 //
-// Solidity: function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] signatures) returns()
-func (_Reward *RewardTransactor) PostReward(opts *bind.TransactOpts, rewardRoot [32]byte, rewardAmount *big.Int, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.contract.Transact(opts, "postReward", rewardRoot, rewardAmount, signatures)
+// Solidity: function postReward(bytes32 root, uint256 amount) returns()
+func (_Reward *RewardTransactor) PostReward(opts *bind.TransactOpts, root [32]byte, amount *big.Int) (*types.Transaction, error) {
+	return _Reward.contract.Transact(opts, "postReward", root, amount)
 }
 
-// PostReward is a paid mutator transaction binding the contract method 0x0279482c.
+// PostReward is a paid mutator transaction binding the contract method 0xeb630dd3.
 //
-// Solidity: function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] signatures) returns()
-func (_Reward *RewardSession) PostReward(rewardRoot [32]byte, rewardAmount *big.Int, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.Contract.PostReward(&_Reward.TransactOpts, rewardRoot, rewardAmount, signatures)
+// Solidity: function postReward(bytes32 root, uint256 amount) returns()
+func (_Reward *RewardSession) PostReward(root [32]byte, amount *big.Int) (*types.Transaction, error) {
+	return _Reward.Contract.PostReward(&_Reward.TransactOpts, root, amount)
 }
 
-// PostReward is a paid mutator transaction binding the contract method 0x0279482c.
+// PostReward is a paid mutator transaction binding the contract method 0xeb630dd3.
 //
-// Solidity: function postReward(bytes32 rewardRoot, uint256 rewardAmount, bytes[] signatures) returns()
-func (_Reward *RewardTransactorSession) PostReward(rewardRoot [32]byte, rewardAmount *big.Int, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.Contract.PostReward(&_Reward.TransactOpts, rewardRoot, rewardAmount, signatures)
+// Solidity: function postReward(bytes32 root, uint256 amount) returns()
+func (_Reward *RewardTransactorSession) PostReward(root [32]byte, amount *big.Int) (*types.Transaction, error) {
+	return _Reward.Contract.PostReward(&_Reward.TransactOpts, root, amount)
 }
 
-// UpdatePosterFee is a paid mutator transaction binding the contract method 0x06f0b0d3.
+// UpdatePosterFee is a paid mutator transaction binding the contract method 0xe08b22fa.
 //
-// Solidity: function updatePosterFee(uint256 newFee, bytes[] signatures) returns()
-func (_Reward *RewardTransactor) UpdatePosterFee(opts *bind.TransactOpts, newFee *big.Int, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.contract.Transact(opts, "updatePosterFee", newFee, signatures)
+// Solidity: function updatePosterFee(uint256 newFee, uint256 _nonce) returns()
+func (_Reward *RewardTransactor) UpdatePosterFee(opts *bind.TransactOpts, newFee *big.Int, _nonce *big.Int) (*types.Transaction, error) {
+	return _Reward.contract.Transact(opts, "updatePosterFee", newFee, _nonce)
 }
 
-// UpdatePosterFee is a paid mutator transaction binding the contract method 0x06f0b0d3.
+// UpdatePosterFee is a paid mutator transaction binding the contract method 0xe08b22fa.
 //
-// Solidity: function updatePosterFee(uint256 newFee, bytes[] signatures) returns()
-func (_Reward *RewardSession) UpdatePosterFee(newFee *big.Int, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.Contract.UpdatePosterFee(&_Reward.TransactOpts, newFee, signatures)
+// Solidity: function updatePosterFee(uint256 newFee, uint256 _nonce) returns()
+func (_Reward *RewardSession) UpdatePosterFee(newFee *big.Int, _nonce *big.Int) (*types.Transaction, error) {
+	return _Reward.Contract.UpdatePosterFee(&_Reward.TransactOpts, newFee, _nonce)
 }
 
-// UpdatePosterFee is a paid mutator transaction binding the contract method 0x06f0b0d3.
+// UpdatePosterFee is a paid mutator transaction binding the contract method 0xe08b22fa.
 //
-// Solidity: function updatePosterFee(uint256 newFee, bytes[] signatures) returns()
-func (_Reward *RewardTransactorSession) UpdatePosterFee(newFee *big.Int, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.Contract.UpdatePosterFee(&_Reward.TransactOpts, newFee, signatures)
-}
-
-// UpdateSigners is a paid mutator transaction binding the contract method 0x6ae402d8.
-//
-// Solidity: function updateSigners(address[] newSigners, uint8 newThreshold, bytes[] signatures) returns()
-func (_Reward *RewardTransactor) UpdateSigners(opts *bind.TransactOpts, newSigners []common.Address, newThreshold uint8, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.contract.Transact(opts, "updateSigners", newSigners, newThreshold, signatures)
-}
-
-// UpdateSigners is a paid mutator transaction binding the contract method 0x6ae402d8.
-//
-// Solidity: function updateSigners(address[] newSigners, uint8 newThreshold, bytes[] signatures) returns()
-func (_Reward *RewardSession) UpdateSigners(newSigners []common.Address, newThreshold uint8, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.Contract.UpdateSigners(&_Reward.TransactOpts, newSigners, newThreshold, signatures)
-}
-
-// UpdateSigners is a paid mutator transaction binding the contract method 0x6ae402d8.
-//
-// Solidity: function updateSigners(address[] newSigners, uint8 newThreshold, bytes[] signatures) returns()
-func (_Reward *RewardTransactorSession) UpdateSigners(newSigners []common.Address, newThreshold uint8, signatures [][]byte) (*types.Transaction, error) {
-	return _Reward.Contract.UpdateSigners(&_Reward.TransactOpts, newSigners, newThreshold, signatures)
+// Solidity: function updatePosterFee(uint256 newFee, uint256 _nonce) returns()
+func (_Reward *RewardTransactorSession) UpdatePosterFee(newFee *big.Int, _nonce *big.Int) (*types.Transaction, error) {
+	return _Reward.Contract.UpdatePosterFee(&_Reward.TransactOpts, newFee, _nonce)
 }
 
 // Fallback is a paid mutator transaction binding the contract fallback function.
@@ -686,12 +603,13 @@ func (it *RewardPosterFeeUpdatedIterator) Close() error {
 // RewardPosterFeeUpdated represents a PosterFeeUpdated event raised by the Reward contract.
 type RewardPosterFeeUpdated struct {
 	NewFee *big.Int
+	Nonce  *big.Int
 	Raw    types.Log // Blockchain specific contextual infos
 }
 
-// FilterPosterFeeUpdated is a free log retrieval operation binding the contract event 0x27c3f41951509d8d7456e7a1f8d59dc564b498c4500990a69c3df85fd6b81e87.
+// FilterPosterFeeUpdated is a free log retrieval operation binding the contract event 0x7c7423dff6eff60ac491456a649034ee92866801bb236290a4b9190e370e8952.
 //
-// Solidity: event PosterFeeUpdated(uint256 newFee)
+// Solidity: event PosterFeeUpdated(uint256 newFee, uint256 nonce)
 func (_Reward *RewardFilterer) FilterPosterFeeUpdated(opts *bind.FilterOpts) (*RewardPosterFeeUpdatedIterator, error) {
 
 	logs, sub, err := _Reward.contract.FilterLogs(opts, "PosterFeeUpdated")
@@ -701,9 +619,9 @@ func (_Reward *RewardFilterer) FilterPosterFeeUpdated(opts *bind.FilterOpts) (*R
 	return &RewardPosterFeeUpdatedIterator{contract: _Reward.contract, event: "PosterFeeUpdated", logs: logs, sub: sub}, nil
 }
 
-// WatchPosterFeeUpdated is a free log subscription operation binding the contract event 0x27c3f41951509d8d7456e7a1f8d59dc564b498c4500990a69c3df85fd6b81e87.
+// WatchPosterFeeUpdated is a free log subscription operation binding the contract event 0x7c7423dff6eff60ac491456a649034ee92866801bb236290a4b9190e370e8952.
 //
-// Solidity: event PosterFeeUpdated(uint256 newFee)
+// Solidity: event PosterFeeUpdated(uint256 newFee, uint256 nonce)
 func (_Reward *RewardFilterer) WatchPosterFeeUpdated(opts *bind.WatchOpts, sink chan<- *RewardPosterFeeUpdated) (event.Subscription, error) {
 
 	logs, sub, err := _Reward.contract.WatchLogs(opts, "PosterFeeUpdated")
@@ -738,9 +656,9 @@ func (_Reward *RewardFilterer) WatchPosterFeeUpdated(opts *bind.WatchOpts, sink 
 	}), nil
 }
 
-// ParsePosterFeeUpdated is a log parse operation binding the contract event 0x27c3f41951509d8d7456e7a1f8d59dc564b498c4500990a69c3df85fd6b81e87.
+// ParsePosterFeeUpdated is a log parse operation binding the contract event 0x7c7423dff6eff60ac491456a649034ee92866801bb236290a4b9190e370e8952.
 //
-// Solidity: event PosterFeeUpdated(uint256 newFee)
+// Solidity: event PosterFeeUpdated(uint256 newFee, uint256 nonce)
 func (_Reward *RewardFilterer) ParsePosterFeeUpdated(log types.Log) (*RewardPosterFeeUpdated, error) {
 	event := new(RewardPosterFeeUpdated)
 	if err := _Reward.contract.UnpackLog(event, "PosterFeeUpdated", log); err != nil {
@@ -1016,141 +934,6 @@ func (_Reward *RewardFilterer) WatchRewardPosted(opts *bind.WatchOpts, sink chan
 func (_Reward *RewardFilterer) ParseRewardPosted(log types.Log) (*RewardRewardPosted, error) {
 	event := new(RewardRewardPosted)
 	if err := _Reward.contract.UnpackLog(event, "RewardPosted", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// RewardSignersUpdatedIterator is returned from FilterSignersUpdated and is used to iterate over the raw logs and unpacked data for SignersUpdated events raised by the Reward contract.
-type RewardSignersUpdatedIterator struct {
-	Event *RewardSignersUpdated // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *RewardSignersUpdatedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(RewardSignersUpdated)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(RewardSignersUpdated)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *RewardSignersUpdatedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *RewardSignersUpdatedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// RewardSignersUpdated represents a SignersUpdated event raised by the Reward contract.
-type RewardSignersUpdated struct {
-	NewSigners   []common.Address
-	NewThreshold uint8
-	Raw          types.Log // Blockchain specific contextual infos
-}
-
-// FilterSignersUpdated is a free log retrieval operation binding the contract event 0xba48f7451a1bddc716ecd599483478b64fb19be03be6b59f118b2caa95f50413.
-//
-// Solidity: event SignersUpdated(address[] newSigners, uint8 newThreshold)
-func (_Reward *RewardFilterer) FilterSignersUpdated(opts *bind.FilterOpts) (*RewardSignersUpdatedIterator, error) {
-
-	logs, sub, err := _Reward.contract.FilterLogs(opts, "SignersUpdated")
-	if err != nil {
-		return nil, err
-	}
-	return &RewardSignersUpdatedIterator{contract: _Reward.contract, event: "SignersUpdated", logs: logs, sub: sub}, nil
-}
-
-// WatchSignersUpdated is a free log subscription operation binding the contract event 0xba48f7451a1bddc716ecd599483478b64fb19be03be6b59f118b2caa95f50413.
-//
-// Solidity: event SignersUpdated(address[] newSigners, uint8 newThreshold)
-func (_Reward *RewardFilterer) WatchSignersUpdated(opts *bind.WatchOpts, sink chan<- *RewardSignersUpdated) (event.Subscription, error) {
-
-	logs, sub, err := _Reward.contract.WatchLogs(opts, "SignersUpdated")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(RewardSignersUpdated)
-				if err := _Reward.contract.UnpackLog(event, "SignersUpdated", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseSignersUpdated is a log parse operation binding the contract event 0xba48f7451a1bddc716ecd599483478b64fb19be03be6b59f118b2caa95f50413.
-//
-// Solidity: event SignersUpdated(address[] newSigners, uint8 newThreshold)
-func (_Reward *RewardFilterer) ParseSignersUpdated(log types.Log) (*RewardSignersUpdated, error) {
-	event := new(RewardSignersUpdated)
-	if err := _Reward.contract.UnpackLog(event, "SignersUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

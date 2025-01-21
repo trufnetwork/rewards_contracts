@@ -50,8 +50,6 @@ class RewardSafe {
             operation: OperationType.Call
         }
 
-        console.log('----------txData', txData)
-
         const transactions = [txData];
 
         const safeTx = await safe.createTransaction({
@@ -65,8 +63,6 @@ class RewardSafe {
                 nonce: nonce,
             },
         })
-
-        console.log('----------safeTx', safeTx)
 
         const safeTxHash = await safe.getTransactionHash(safeTx);
         return {safeTx, transactions, safeTxHash}
@@ -210,6 +206,15 @@ class RewardSafe {
         if (transactions.results.length > 0) {
             console.log('Last executed transaction', transactions.results[0])
         }
+    }
+
+    async getNonce() {
+        const safe = await Safe.init({
+            provider: this.rpc,
+            safeAddress: this.safeAddress,
+        })
+
+        return await safe.getNonce();
     }
 }
 

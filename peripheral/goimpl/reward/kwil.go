@@ -1,4 +1,4 @@
-package signer
+package reward
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/base64"
 	"fmt"
-	"goimpl/utils"
 	"golang.org/x/exp/slices"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -14,49 +13,71 @@ import (
 	"github.com/kwilteam/kwil-db/core/client"
 	clientTypes "github.com/kwilteam/kwil-db/core/client/types"
 	"github.com/kwilteam/kwil-db/core/types"
-	"github.com/kwilteam/kwil-db/core/types/decimal"
 )
 
-// ConvQueryResultCols convert the idx columns to a type.
-// NOTE: this should be provided in SDK.
-func ConvQueryResultCols[T any](qr types.QueryResult, idx int) []T {
-	cols := make([]T, 0, len(qr.Values))
-	for i, row := range qr.Values {
-		var col T
-		col = row[idx].(T)
-		cols[i] = col
-	}
-	return cols
+type PendingReward struct {
+	ID         *types.UUID
+	Recipient  string
+	Amount     *types.Decimal
+	ContractID *types.UUID
+	CreatedAt  int64
+}
+
+type EpochReward struct {
+	ID           *types.UUID
+	StartHeight  int64
+	EndHeight    int64
+	TotalRewards *types.Decimal
+	//MtreeJson    string
+	RewardRoot []byte
+	SafeNonce  int64
+	SignHash   []byte
+	ContractID *types.UUID
+	CreatedAt  int64
+	Voters     []string
+}
+
+type FinalizedReward struct {
+	ID         *types.UUID
+	Voters     []string
+	Signatures [][]byte
+	EpochID    *types.UUID
+	CreatedAt  int64
+	//
+	StartHeight  int64
+	EndHeight    int64
+	TotalRewards *types.Decimal
+	RewardRoot   []byte
+	SafeNonce    int64
+	SignHash     []byte
+	ContractID   *types.UUID
 }
 
 type KwilRewardExtAPI interface {
-	SetNs(ns string)
-	//FetchPendingRewards(ctx context.Context, startHeight int64, endHeight int64) ([]*PendingReward, error)
-	FetchEpochRewards(ctx context.Context, startHeight int64, limit int) ([]*EpochReward, error)
+	SetNS(ns string)
+	FetchEpochRewards(ctx context.Context, afterHeight int64, limit int) ([]*EpochReward, error)
 	FetchLatestRewards(ctx context.Context, limit int) ([]*FinalizedReward, error)
-	//ProposeEpoch is more reasonable to be called by Kwil network.
-	//ProposeEpoch(ctx context.Context, safeNonce int64) (string, error)
 	VoteEpoch(ctx context.Context, signHash []byte, signature []byte) (string, error)
 }
 
-type kwilApi struct {
+type KwilApi struct {
 	clt *client.Client
 	ns  string
 }
 
-func NewKwilApi(clt *client.Client, ns string) *kwilApi {
-	return &kwilApi{
+func NewKwilApi(clt *client.Client, ns string) *KwilApi {
+	return &KwilApi{
 		clt: clt,
 		ns:  ns,
 	}
 }
 
-func (k *kwilApi) SetNs(ns string) {
+func (k *KwilApi) SetNS(ns string) {
 	k.ns = ns
 }
 
-func (k *kwilApi) FetchPendingRewards(ctx context.Context, startHeight int64, endHeight uint64) ([]*PendingReward, error) {
-	procedure := "list_rewards"
+func (k *KwilApi) SearchPendingRewards(ctx context.Context, startHeight int64, endHeight uint64) ([]*PendingReward, error) {
+	procedure := "search_rewards"
 	input := []any{startHeight, endHeight}
 
 	res, err := k.clt.Call(ctx, k.ns, procedure, input)
@@ -67,6 +88,13 @@ func (k *kwilApi) FetchPendingRewards(ctx context.Context, startHeight int64, en
 	prs := make([]*PendingReward, len(res.QueryResult.Values))
 
 	for i, v := range res.QueryResult.Values {
+		//pr := &PendingReward{}
+		//err = types.ScanTo(v, &pr.ID, &pr.Recipient, &pr.Amount, &pr.ContractID, &pr.CreatedAt)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//prs[i] = pr
+
 		prs[i] = &PendingReward{}
 
 		prs[i].ID, err = types.ParseUUID(v[0].(string))
@@ -76,7 +104,7 @@ func (k *kwilApi) FetchPendingRewards(ctx context.Context, startHeight int64, en
 
 		prs[i].Recipient = v[1].(string)
 
-		prs[i].Amount, err = decimal.NewFromString(v[2].(string))
+		prs[i].Amount, err = types.ParseDecimal(v[2].(string))
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +120,7 @@ func (k *kwilApi) FetchPendingRewards(ctx context.Context, startHeight int64, en
 	return prs, nil
 }
 
-func (k *kwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limit int) ([]*EpochReward, error) {
+func (k *KwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limit int) ([]*EpochReward, error) {
 	procedure := "list_epochs"
 	input := []any{startHeight, limit}
 
@@ -115,7 +143,7 @@ func (k *kwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limi
 
 		ers[i].StartHeight = int64(v[1].(float64))
 		ers[i].EndHeight = int64(v[2].(float64))
-		ers[i].TotalRewards, err = decimal.NewFromString(v[3].(string))
+		ers[i].TotalRewards, err = types.ParseDecimal(v[3].(string))
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +161,6 @@ func (k *kwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limi
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("======signHash==========%x\n", ers[i].SignHash)
 
 		ers[i].ContractID, err = types.ParseUUID(v[7].(string))
 		if err != nil {
@@ -142,14 +169,26 @@ func (k *kwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limi
 
 		ers[i].CreatedAt = int64(v[8].(float64))
 
-		voters := utils.Map(v[9].([]any), func(v any) string { s, _ := v.(string); return s })
+		voters := Map(v[9].([]any), func(v any) string { s, _ := v.(string); return s })
 		ers[i].Voters = voters
+
+		//er := &EpochReward{}
+		//err = types.ScanTo(v, &er.ID, &er.StartHeight, &er.EndHeight, &er.TotalRewards,
+		//	&er.RewardRoot, &er.SafeNonce, &er.SignHash, &er.ContractID, &er.CreatedAt, &er.Voters)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//ers[i] = er
+		//
+		//fmt.Println("======v===========", v[4])
+		//fmt.Println("======v===========", hex.EncodeToString(ers[i].RewardRoot))
+
 	}
 
 	return ers, nil
 }
 
-func (k *kwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*FinalizedReward, error) {
+func (k *KwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*FinalizedReward, error) {
 	procedure := "latest_finalized"
 	input := []any{limit}
 
@@ -170,10 +209,10 @@ func (k *kwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*Finaliz
 			return nil, err
 		}
 
-		voters := utils.Map(v[1].([]any), func(v any) string { s, _ := v.(string); return s })
+		voters := Map(v[1].([]any), func(v any) string { s, _ := v.(string); return s })
 		frs[i].Voters = voters
 
-		signatures := utils.Map(v[2].([]any), func(v any) (sig []byte) {
+		signatures := Map(v[2].([]any), func(v any) (sig []byte) {
 			s, _ := v.(string)
 			sig, err = base64.StdEncoding.DecodeString(s)
 			if err != nil {
@@ -196,7 +235,7 @@ func (k *kwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*Finaliz
 		frs[i].StartHeight = int64(v[5].(float64))
 		frs[i].EndHeight = int64(v[6].(float64))
 
-		frs[i].TotalRewards, err = decimal.NewFromString(v[7].(string))
+		frs[i].TotalRewards, err = types.ParseDecimal(v[7].(string))
 		if err != nil {
 			return nil, err
 		}
@@ -217,12 +256,21 @@ func (k *kwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*Finaliz
 		if err != nil {
 			return nil, err
 		}
+
+		//fr := &FinalizedReward{}
+		//err = types.ScanTo(v, &fr.ID, &fr.Voters, &fr.Signatures, &fr.EpochID,
+		//	&fr.CreatedAt, &fr.StartHeight, &fr.EndHeight, &fr.TotalRewards,
+		//	&fr.RewardRoot, &fr.SafeNonce, &fr.SignHash, &fr.ContractID)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//frs[i] = fr
 	}
 
 	return frs, nil
 }
 
-func (k *kwilApi) ProposeEpoch(ctx context.Context) (string, error) {
+func (k *KwilApi) ProposeEpoch(ctx context.Context) (string, error) {
 	procedure := "propose_epoch"
 	input := [][]any{{}}
 
@@ -231,12 +279,10 @@ func (k *kwilApi) ProposeEpoch(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	fmt.Printf("================%+v\n", res)
-
 	return res.String(), nil
 }
 
-func (k *kwilApi) VoteEpoch(ctx context.Context, signHash []byte, signature []byte) (string, error) {
+func (k *KwilApi) VoteEpoch(ctx context.Context, signHash []byte, signature []byte) (string, error) {
 	procedure := "vote_epoch"
 	input := [][]any{{signHash, signature}}
 
@@ -245,12 +291,10 @@ func (k *kwilApi) VoteEpoch(ctx context.Context, signHash []byte, signature []by
 		return "", err
 	}
 
-	fmt.Printf("================%+v\n", res)
-
 	return res.String(), nil
 }
 
-func (k *kwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) ([][]byte, error) {
+func (k *KwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) ([][]byte, error) {
 	procedure := "get_proof"
 	input := []any{signHash, wallet}
 
@@ -265,8 +309,6 @@ func (k *kwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) 
 
 	proofs := make([][]byte, len(res.QueryResult.Values))
 	for _, v := range res.QueryResult.Values {
-		fmt.Printf("======proof==========%+v, %T\n", v, v)
-		fmt.Printf("======proof i==========%+v, %T\n", v[0], v[0])
 		ps := v[0].([]any)
 		for i, p := range ps {
 			proofs[i], err = base64.StdEncoding.DecodeString(p.(string))

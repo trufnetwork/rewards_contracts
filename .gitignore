@@ -30,6 +30,6 @@ test/GnosisSafeRewardDistributor.ts
 
 # goimpl
 test/testdata/.go_finalized_reward.json
-peripheral/goimpl/signer/.env
+peripheral/goimpl/reward/.env
 peripheral/goimpl/go.work
 peripheral/goimpl/go.work.sum
