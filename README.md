@@ -8,13 +8,13 @@ sequenceDiagram
     participant k as Kwil
     participant s as SignerService
     participant p as PosterService
-    participant g as GnosisSafe
+    participant g as Safe
     participant sf as Safe(EVM)
     participant r as Reward(EVM)
 
     rect rgba(0, 0, 255, .1)
     Note right of u: User Kwil interaction
-    u ->>+ k: I want my reward
+    u ->>+ k: Request reward
     k ->>- u: Alright, pending in current epoch
     end
 
@@ -22,16 +22,16 @@ sequenceDiagram
 
     rect rgba(0,255,0,.1)
     Note left of s: Signer service
-    s ->>+ k: Fetch pending epoch rewards
-    k ->>- s: Rewards can be voted/signed
+    s ->>+ k: Request pending epoch rewards
+    k ->>- s: Return rewards that can be voted/signed
     s -->> s: Sign the reward
     s ->> k: Agree/vote reward by uploading signature
     end
 
     rect rgba(255,0,0,.1)
     Note right of p: Poster service
-    p ->>+ k: Fetch pending finalized rewards
-    k ->>- p: Rewards(with enough votes) <br>can be posted to Ethereum
+    p ->>+ k: Fetch signed rewards not yet posted to Ethereum
+    k ->>- p: Return unposted rewards(with enough votes) <br>to be posted to Ethereum
     p ->>+ g: Propose Tx and confirm Tx
     g -->>- p: Tx will be ready to be executed
 
@@ -52,14 +52,14 @@ sequenceDiagram
 
 ## Development
 
-Since we're using GnosisSafe, and it's hard to deploy a local full stack GnosisSafe
-service, we're going to use GnosisSafe on Sepolia.
+Since we're using Safe, and it's hard to deploy a local full stack Safe
+service, we're going to use Safe on Sepolia.
 
 First copy `.env.example` to `.env` and fill in your mnemonic. Make sure you have
 enough ETH(0.1 is enough) on Sepolia.
 
-Go https://app.safe.global/home and create a GnosisSafe Wallet on Sepolia network, with
-the first three derived wallets as the owners of the GnosisSafe Wallet, those wallets
+Go https://app.safe.global/home and create a Safe Wallet on Sepolia network, with
+the first three derived wallets as the owners of the Safe Wallet, those wallets
 will be used in the tests/scripts.
 
 After that, run `npm run redeploy:sepolia` to deploy RewardDistributor contract to

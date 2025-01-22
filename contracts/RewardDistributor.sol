@@ -10,8 +10,9 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title RewardDistributor - Kwil Reward distribution contract.
- * @dev A reward in this contract is the aggregation of multiple rewards in a kwil epoch; a merkle tree is generated
- * from those rewards and it's referenced by the merkle tree root. In this contract, we store the root of the tree.
+ * @dev A reward in this contract is the aggregation of multiple rewards in a kwil epoch (the discreet period in which
+ * rewards are accumulated); a merkle tree is generated from those rewards and it's referenced by the merkle tree root. 
+ * In this contract, we store the root of the tree.
  */
 contract RewardDistributor is ReentrancyGuard {
     /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
@@ -20,6 +21,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// What about ethereum chain id? Seems not necessary to me, as the GnosisSafe is chain aware.
     /// @dev Since root(reward hash) is unique, and we've guarded it in postReward,
     /// we don't need to worry about TX replay.
+    /// To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/78cf249506eb9f892e1108f0b44553313ab121b7/peripheral/lib/reward.ts#L15 
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
@@ -83,9 +85,9 @@ contract RewardDistributor is ReentrancyGuard {
     }
 
     /// @notice This allows a user on behalf of the recipient to claim reward by providing
-    /// the leaf data and correspond Merkle proofs. The reward must be existed and not already claimed.
+    /// the leaf data and corresponding Merkle proofs. The reward must exist and not already be claimed.
     /// @dev This is the only method transferring reward token out of this contract.
-    /// @dev On success, the recipient will get some reward tokens. If the caller
+    /// @dev On success, the recipient will receive some reward tokens. If the caller
     /// is not the recipient, there is no reimbursement for the caller; if needed, it's settled off-chain.
     /// @dev Since we need to transfer reward token to the recipient encoded in the Merkle tree,
     /// we have to regenerate and verify the leaf in the contract to ensure the authenticity.
