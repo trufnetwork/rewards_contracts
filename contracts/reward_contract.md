@@ -2,32 +2,32 @@
 
 ## Overview
 
-The `RewardDistributor` is a smart contract designed to securely distribute ERC20 token rewards to eligible recipients. The contract utilizes a Merkle tree for efficient verification of reward claims and requires a GnosisSafe wallet for posting rewards, updating the fees, and managing signers.
+The `RewardDistributor` is a smart contract designed to securely distribute ERC20 token rewards to eligible recipients. The contract utilizes a Merkle tree for efficient verification of reward claims and requires a [Safe Wallet](https://safe.global/wallet) for posting rewards, updating the fees, and managing signers.
 
 ### Key Features
 
 - **Reward Distribution via Merkle Trees**: This allows multiple recipients to claim rewards based on their inclusion in a Merkle tree.
-- **Multisig Signer Approval**: Key actions require multisign from GnosisSafe wallet.
-- **Poster Fee Mechanism**: A small fee is paid by claimants to the individual who posts the reward root, to offset the gas fees spent distributing rewards.
+- **Multisig Signer Approval**: Distributing rewards require multisign from Safe wallet.
+- **Poster Fee Mechanism**: A small fee is paid by claimants to the individual who posts the reward root (the `PosterService`) to offset the gas fees spent distributing rewards.
 
 ## Different roles involved
 
-- SignerService: Kwil network reward signer service. It signs new reward on Kwil network, and upload the signature
-  onto Kwil network, which later will be used by PosterService to propose/comfirm/execute txs through GnosisSafe.
-- Safe: GnosisSafe wallet. It's the admin role to update contract's state, through `postReward`/`updatePosterFee`.
-- PosterService: A service dedicated to pose transactions through GnosisSafe to this contract.
+- SignerService: Kwil network reward signer service. It manages individual signatures for the SAFE wallet and uploads signatures to a Kwil database (to be used be `Poster Service`). Learn more about Kwil [here](https://docs.kwil.com).
+- Safe: Safe wallet that has admin privileges to update a contract's state, through `postReward`/`updatePosterFee`.
+- PosterService: A service that uses transactions from `SignerService` to propose/confirm/execute transactions through Safe to this contract.
 - User: A wallet which is able to claim reward through `claimReward`, providing proofs.
 
 NOTE: A diagram of the workflow is available in [README](../README.md).
 
 ## Contract Components
 
-### GnosisSafe Wallet
+### Safe Wallet
 
-The GnosisSafe wallet acts admin to:
-- post reward
-- update poster fee
-- update signer list (through GnosisSafe directly)
+The Safe wallet acts as the administrator to:
+
+- Post rewards
+- Update poster fee
+- Update signer list (through Safe directly)
 
 ### Reward Posting
 
@@ -49,6 +49,7 @@ The contract allows for the adjustment of the reward fee paid to the poster of a
 ## Usage
 
 ### 1. Posting a Reward Root
+
 To post a reward root, an authorized individual must collect signatures from the required number of signers. The reward root, along with the total amount of tokens to be distributed, is submitted to the contract. The contract verifies the signatures and ensures the reward amount does not exceed the contract’s token balance.
 
 ### 2. Claiming a Reward
