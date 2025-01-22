@@ -1,5 +1,4 @@
 import Safe from "@safe-global/protocol-kit";
-import hre from "hardhat";
 import {GenHDWallets} from "../wallet";
 import {expect} from "chai";
 import {RewardSafe} from "../gnosis";
@@ -10,15 +9,9 @@ import {RewardSafe} from "../gnosis";
     Golang impl should use the same parameter as used in this test.
  */
 describe("Crypto", function () {
-    if (hre.network.name != "sepolia") {
-        console.log("Skip test on network: " + hre.network.name);
-        return;
-    }
-
     const mnemonic = "test test test test test test test test test test test junk" // default hardhat mnemonic
-    const alchemyApiKey = process.env.ALCHEMY_API_KEY;
-    const rpcURL = `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-    const chainID = 11155111n;
+    const rpcURL = process.env.SEPOLIA_RPC!;
+    const chainID = 11155111n; // sepolia
 
     const safeAddress = "0xbBeaaA74777B1dc14935f5b7E96Bb0ed6DBbD596";
     const rewardAddress= "0x55EAC662C9D77cb537DBc9A57C0aDa90eB88132d";

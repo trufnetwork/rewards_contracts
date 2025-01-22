@@ -7,7 +7,7 @@ The `RewardDistributor` is a smart contract designed to securely distribute ERC2
 ### Key Features
 
 - **Reward Distribution via Merkle Trees**: This allows multiple recipients to claim rewards based on their inclusion in a Merkle tree.
-- **Multisig Signer Approval**: Distributing rewards require multisign from Safe wallet.
+- **Multisig Signer Approval**: Distributing rewards requires multisign from Safe wallet.
 - **Poster Fee Mechanism**: A small fee is paid by claimants to the individual who posts the reward root (the `PosterService`) to offset the gas fees spent distributing rewards.
 
 ## Different roles involved

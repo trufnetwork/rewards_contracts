@@ -12,13 +12,14 @@ sequenceDiagram
     participant sf as Safe(EVM)
     participant r as Reward(EVM)
 
-    rect rgba(0, 0, 255, .1)
-    Note right of u: User Kwil interaction
-    u ->>+ k: Request reward
-    k ->>- u: Alright, pending in current epoch
+    rect rgba(0, 255, 255, .1)
+    Note right of u: User interaction
+    u ->>+ k: Call/Execute an Action
+    k -->> k: Trigger issuing reward to User
+    k -->> k: Pending in current epoch
     end
 
-    k ->> k: Propose an epoch reward: <br> Aggregate rewards since last epoch. <br> Generate merkle tree.
+    k -->> k: Propose an epoch reward: <br> Aggregate rewards in current epoch. <br> Generate merkle tree from all rewards.
 
     rect rgba(0,255,0,.1)
     Note left of s: Signer service
@@ -50,7 +51,7 @@ sequenceDiagram
     end
 ```
 
-## Development
+## Development with Sepolia testnet
 
 Since we're using Safe, and it's hard to deploy a local full stack Safe
 service, we're going to use Safe on Sepolia.
@@ -59,13 +60,9 @@ First copy `.env.example` to `.env` and fill in your mnemonic. Make sure you hav
 enough ETH(0.1 is enough) on Sepolia.
 
 Go https://app.safe.global/home and create a Safe Wallet on Sepolia network, with
-the first three derived wallets as the owners of the Safe Wallet, those wallets
-will be used in the tests/scripts.
+the first three derived wallets(from the mnemonic) as the owners of the Safe Wallet,
+those wallets will be used in the tests/scripts.
 
 After that, run `npm run redeploy:sepolia` to deploy RewardDistributor contract to
 the Sepolia network. This will also deploy a mock erc20 token as the reward token.
 Then put the contract address and Safe address to .env file.
-
-Now you have everything except the Kwil network API. We're going to mock it in the tests.
-Run `npm run test:poster:sepolia` will actually post/claim a stub Reward.
-NOTE: you need to modify `kwilBlockHeight` everytime you run the test.

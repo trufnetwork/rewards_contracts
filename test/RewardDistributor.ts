@@ -10,18 +10,8 @@ import {
     getMTreeProof,
 } from "../peripheral/lib/reward";
 
-describe("Sign message", () => {
-    it("Should have expect signature", async () => {
-        const msg = "sosup";
-        const [n, signer1] = await hre.ethers.getSigners();
-
-        expect(await signer1.signMessage(msg))
-            .to.equal("0x1fc551d4d1f0901b64432dc59f372beb231adfa2021e1fa5a2cc314df7d98f114ff8afa4603ceee05f768532b615807df8ac358b64b318baaeef5237301240771b")
-    });
-})
-
 // Unit tests for RewardDistributor contract, without using GnosisSafe.
-// Thus, the poster wallet will be acting as safe wallet, i.e.,
+// Thus, the Poster wallet will be acting as safe wallet, i.e.,
 // `poster -> rewardContract` instead of `poster -> safe -> rewardContract`
 describe("RewardDistributor UnitTest", function () {
     if  (hre.network.name != "hardhat") {
@@ -31,14 +21,12 @@ describe("RewardDistributor UnitTest", function () {
 
     // setups
     const emptyRewardRoot = "0x0000000000000000000000000000000000000000000000000000000000000000";
-    const rewardContractAddress = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
     const posterFee1 = parseUnits("1000000", "gwei")
     const posterFee2 = parseUnits("2000000", "gwei")
 
     const kwilFirstRewardBlock = toBigInt(100);
 
     let rewardToken: IERC20;
-    let rewardAddress: string;
 
     // networkOwner: kwil network owner, also the owner of the mock reward token
     let networkOwner: HardhatEthersSigner,
@@ -63,7 +51,6 @@ describe("RewardDistributor UnitTest", function () {
         const rewardDist = await RewardDist.connect(networkOwner).deploy(
             gnosisSafe, posterFee1, rewardToken);
 
-        rewardAddress = await  rewardDist.getAddress();
         return {rewardDist, posterFee: posterFee1, rewardToken};
     }
 

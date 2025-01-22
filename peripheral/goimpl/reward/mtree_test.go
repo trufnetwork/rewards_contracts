@@ -22,7 +22,7 @@ func TestMerkleTree(t *testing.T) {
 
 	kwilBlock := "100"
 
-	testdataDir := "../../../test/testdata/"
+	testdataDir := "../../testdata/"
 
 	t.Run("genMerkleTree with 3 leafs", func(t *testing.T) {
 		expectRoot := "dac671e71a7196507328c7e5cf5613318112ca9bc20a224771894440f168ac99"

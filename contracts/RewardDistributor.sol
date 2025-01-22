@@ -54,7 +54,6 @@ contract RewardDistributor is ReentrancyGuard {
         safe = _safe;
     }
 
-    /// @dev It's called by network rewardPoster.
     /// @dev Since root is unique, it can also prevent tx replay.
     /// @dev We can also use 'nonce', but seems not necessary since rewardRoot is unique.
     /// @param root The merkle tree root of an epoch reward.

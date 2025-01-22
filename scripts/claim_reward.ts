@@ -1,10 +1,7 @@
 import hre from "hardhat";
 import { expect, assert } from "chai"
-import {Kwil} from "../peripheral/poster/kwil";
-import {EVMPoster} from "../peripheral/poster/poster";
 import {GenHDWallets} from "../peripheral/lib/wallet";
 import {ethers, toBigInt} from "ethers";
-import {RewardSafe} from "../peripheral/lib/gnosis";
 import {HardhatNetworkHDAccountsConfig} from "hardhat/src/types/config";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 
@@ -41,7 +38,8 @@ async function main() {
     // we use GenHDWallets here because we need private key
     // NOTE: ceo/cfo/eng are signers, 'eng' are also user
     const [ceo, cfo, eng, poster] = GenHDWallets(actConfig.mnemonic);
-    const posterSigner = (await hre.ethers.getSigners())[3];
+    // as long as the signer has Sepolia ETH
+    const signer = (await hre.ethers.getSigners())[3];
 
     const safeAddress = process.env.SEPOLIA_SAFE_ADDRESS ?? '';
     assert(safeAddress, "safe address not set");
@@ -53,7 +51,7 @@ async function main() {
         "", // 0x...
         "", // 0.0
         0, //
-        posterSigner);
+        signer);
 }
 
 main().catch(console.error)

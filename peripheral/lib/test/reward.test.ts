@@ -47,6 +47,7 @@ describe("MerkleTree", function () {
     const contract = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 
     const kwilBlock = "100";
+    const testdataDir = "./peripheral/testdata/";
 
     it("Should generate a merkle tree leaf", async () => {
         const l1 = genRewardLeaf(user1, "100", contract, kwilBlock);
@@ -68,7 +69,7 @@ describe("MerkleTree", function () {
     it("Should generate a merkle tree with 3 leafs", async () => {
         const t = genRewardMerkleTree([user1, user2, user3],
             [100, 200, 100], contract, kwilBlock);
-        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/3leafs_tree.json").toString());
+        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync(testdataDir + "3leafs_tree.json").toString());
         expect(t.tree.root).to.equal("0xdac671e71a7196507328c7e5cf5613318112ca9bc20a224771894440f168ac99"); // same as mtjs output
 
         const p = getMTreeProof(t.tree, user2)
@@ -80,7 +81,7 @@ describe("MerkleTree", function () {
     it("Should generate a merkle tree with 4 leafs", async () => {
         const t = genRewardMerkleTree([user1, user2, user3, user4],
             [100, 200, 100, 200], contract, kwilBlock);
-        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/4leafs_tree.json").toString());
+        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync(testdataDir + "4leafs_tree.json").toString());
         expect(t.tree.root).to.equal("0xd42c83e2df462b5ec237101af747d5b2a7e2db64c3c5b332a191ca2ae6f26331");
 
         const p = getMTreeProof(t.tree, user2)
@@ -93,7 +94,7 @@ describe("MerkleTree", function () {
     it("Should generate a merkle tree with 5 leafs", async () => {
         const t = genRewardMerkleTree([user1, user2, user3, user4, user5],
             [100, 200, 100, 200, 100], contract, kwilBlock);
-        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync("./test/testdata/5leafs_tree.json").toString());
+        expect(JSON.stringify(t.tree.dump())).to.equal(fs.readFileSync(testdataDir + "5leafs_tree.json").toString());
         expect(t.tree.root).to.equal("0xa4df6caea13914af2c24a75999b7987640542a12fd32524c3e23167212698284");
 
         const p = getMTreeProof(t.tree, user2)

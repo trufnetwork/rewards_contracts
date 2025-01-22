@@ -187,8 +187,7 @@ async function main() {
 
     if (hre.network.name == "sepolia") {
         mnemonic = process.env.SEPOLIA_MNEMONIC ?? '';
-        const alchemyApiKey = process.env.ALCHEMY_API_KEY;
-        rpcURL = `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
+        rpcURL = process.env.SEPOLIA_RPC!;
         chainID = 11155111n;
     }
 

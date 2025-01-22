@@ -7,13 +7,10 @@ async function main() {
         return;
     }
 
-    const mnemonic = process.env.SEPOLIA_MNEMONIC ?? '';
-    const alchemyApiKey = process.env.ALCHEMY_API_KEY;
-    const rpcURL = `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-
-    const provider = new hre.ethers.JsonRpcProvider(rpcURL);
     const txHash = "0x52b1a2631bd0c3f13325a03a40180adcc9d9f497bafff21cf811bf78da6aa186";
 
+    const rpcURL = process.env.SEPOLIA_RPC!;
+    const provider = new hre.ethers.JsonRpcProvider(rpcURL);
     const tx = await provider.getTransaction(txHash);
     const revertMsg = await getTxRevertMessage(provider, tx!);
     console.log("revert message: ", revertMsg);

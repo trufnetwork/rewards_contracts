@@ -4,21 +4,16 @@ import "@nomicfoundation/hardhat-toolbox";
 import dotenv from 'dotenv';
 dotenv.config();
 
-const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY;
-
-const forkingConfig = {
-        url: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        blockNumber: 7152609,
-        // url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-        // blockNumber: 21272700,
-    };
 
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
-      forking: forkingConfig,
+      forking: {
+          url: process.env.SEPOLIA_RPC!,
+          blockNumber: 7152609,
+      },
       chainId: 11155111,  // chainId must be the same as the forking network
     },
   },
