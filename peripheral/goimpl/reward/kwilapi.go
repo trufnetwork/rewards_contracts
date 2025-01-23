@@ -16,41 +16,41 @@ import (
 )
 
 type PendingReward struct {
-	ID         *types.UUID
+	ID         types.UUID
 	Recipient  string
-	Amount     *types.Decimal
-	ContractID *types.UUID
+	Amount     types.Decimal
+	ContractID types.UUID
 	CreatedAt  int64
 }
 
 type EpochReward struct {
-	ID           *types.UUID
+	ID           types.UUID
 	StartHeight  int64
 	EndHeight    int64
-	TotalRewards *types.Decimal
+	TotalRewards types.Decimal
 	//MtreeJson    string
 	RewardRoot []byte
 	SafeNonce  int64
-	SignHash   []byte
-	ContractID *types.UUID
+	SignHash   []byte // SignHash is Chain aware, it's from GnosisSafeTx
+	ContractID types.UUID
 	CreatedAt  int64
 	Voters     []string
 }
 
 type FinalizedReward struct {
-	ID         *types.UUID
+	ID         types.UUID
 	Voters     []string
 	Signatures [][]byte
-	EpochID    *types.UUID
+	EpochID    types.UUID
 	CreatedAt  int64
 	//
 	StartHeight  int64
 	EndHeight    int64
-	TotalRewards *types.Decimal
+	TotalRewards types.Decimal
 	RewardRoot   []byte
 	SafeNonce    int64
 	SignHash     []byte
-	ContractID   *types.UUID
+	ContractID   types.UUID
 }
 
 type KwilRewardExtAPI interface {
@@ -88,33 +88,12 @@ func (k *KwilApi) SearchPendingRewards(ctx context.Context, startHeight int64, e
 	prs := make([]*PendingReward, len(res.QueryResult.Values))
 
 	for i, v := range res.QueryResult.Values {
-		//pr := &PendingReward{}
-		//err = types.ScanTo(v, &pr.ID, &pr.Recipient, &pr.Amount, &pr.ContractID, &pr.CreatedAt)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//prs[i] = pr
-
-		prs[i] = &PendingReward{}
-
-		prs[i].ID, err = types.ParseUUID(v[0].(string))
+		pr := &PendingReward{}
+		err = types.ScanTo(v, &pr.ID, &pr.Recipient, &pr.Amount, &pr.ContractID, &pr.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
-
-		prs[i].Recipient = v[1].(string)
-
-		prs[i].Amount, err = types.ParseDecimal(v[2].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		prs[i].ContractID, err = types.ParseUUID(v[3].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		prs[i].CreatedAt = int64(v[4].(float64))
+		prs[i] = pr
 	}
 
 	return prs, nil
@@ -135,54 +114,13 @@ func (k *KwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limi
 
 	ers := make([]*EpochReward, len(res.QueryResult.Values))
 	for i, v := range res.QueryResult.Values {
-		ers[i] = &EpochReward{}
-		ers[i].ID, err = types.ParseUUID(v[0].(string))
+		er := &EpochReward{}
+		err = types.ScanTo(v, &er.ID, &er.StartHeight, &er.EndHeight, &er.TotalRewards,
+			&er.RewardRoot, &er.SafeNonce, &er.SignHash, &er.ContractID, &er.CreatedAt, &er.Voters)
 		if err != nil {
 			return nil, err
 		}
-
-		ers[i].StartHeight = int64(v[1].(float64))
-		ers[i].EndHeight = int64(v[2].(float64))
-		ers[i].TotalRewards, err = types.ParseDecimal(v[3].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		//ers[i].MtreeJson = v[4].(string)
-
-		ers[i].RewardRoot, err = base64.StdEncoding.DecodeString(v[4].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		ers[i].SafeNonce = int64(v[5].(float64))
-
-		ers[i].SignHash, err = base64.StdEncoding.DecodeString(v[6].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		ers[i].ContractID, err = types.ParseUUID(v[7].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		ers[i].CreatedAt = int64(v[8].(float64))
-
-		voters := Map(v[9].([]any), func(v any) string { s, _ := v.(string); return s })
-		ers[i].Voters = voters
-
-		//er := &EpochReward{}
-		//err = types.ScanTo(v, &er.ID, &er.StartHeight, &er.EndHeight, &er.TotalRewards,
-		//	&er.RewardRoot, &er.SafeNonce, &er.SignHash, &er.ContractID, &er.CreatedAt, &er.Voters)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//ers[i] = er
-		//
-		//fmt.Println("======v===========", v[4])
-		//fmt.Println("======v===========", hex.EncodeToString(ers[i].RewardRoot))
-
+		ers[i] = er
 	}
 
 	return ers, nil
@@ -203,68 +141,14 @@ func (k *KwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*Finaliz
 
 	frs := make([]*FinalizedReward, len(res.QueryResult.Values))
 	for i, v := range res.QueryResult.Values {
-		frs[i] = &FinalizedReward{}
-		frs[i].ID, err = types.ParseUUID(v[0].(string))
+		fr := &FinalizedReward{}
+		err = types.ScanTo(v, &fr.ID, &fr.Voters, &fr.Signatures, &fr.EpochID,
+			&fr.CreatedAt, &fr.StartHeight, &fr.EndHeight, &fr.TotalRewards,
+			&fr.RewardRoot, &fr.SafeNonce, &fr.SignHash, &fr.ContractID)
 		if err != nil {
 			return nil, err
 		}
-
-		voters := Map(v[1].([]any), func(v any) string { s, _ := v.(string); return s })
-		frs[i].Voters = voters
-
-		signatures := Map(v[2].([]any), func(v any) (sig []byte) {
-			s, _ := v.(string)
-			sig, err = base64.StdEncoding.DecodeString(s)
-			if err != nil {
-				return nil
-			}
-			return sig
-		})
-		if err != nil {
-			return nil, fmt.Errorf("decode signature: %w", err)
-		}
-		frs[i].Signatures = signatures
-
-		frs[i].EpochID, err = types.ParseUUID(v[3].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		frs[i].CreatedAt = int64(v[4].(float64))
-
-		frs[i].StartHeight = int64(v[5].(float64))
-		frs[i].EndHeight = int64(v[6].(float64))
-
-		frs[i].TotalRewards, err = types.ParseDecimal(v[7].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		frs[i].RewardRoot, err = base64.StdEncoding.DecodeString(v[8].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		frs[i].SafeNonce = int64(v[9].(float64))
-
-		frs[i].SignHash, err = base64.StdEncoding.DecodeString(v[10].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		frs[i].ContractID, err = types.ParseUUID(v[11].(string))
-		if err != nil {
-			return nil, err
-		}
-
-		//fr := &FinalizedReward{}
-		//err = types.ScanTo(v, &fr.ID, &fr.Voters, &fr.Signatures, &fr.EpochID,
-		//	&fr.CreatedAt, &fr.StartHeight, &fr.EndHeight, &fr.TotalRewards,
-		//	&fr.RewardRoot, &fr.SafeNonce, &fr.SignHash, &fr.ContractID)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//frs[i] = fr
+		frs[i] = fr
 	}
 
 	return frs, nil
@@ -321,6 +205,7 @@ func (k *KwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) 
 }
 
 // NOTE: this is copied from erc20-reward-extension/reward/crypto.go
+// TODO: import instead of copy
 func EthGnosisSignDigest(digest []byte, key *ecdsa.PrivateKey) ([]byte, error) {
 	sig, err := ethCrypto.Sign(digest, key)
 	if err != nil {

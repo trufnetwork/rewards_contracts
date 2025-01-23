@@ -1,0 +1,10 @@
+FROM golang:1.23
+
+WORKDIR /app
+
+COPY . .
+
+RUN go build .
+
+EXPOSE 8484 6600
+ENTRYPOINT []

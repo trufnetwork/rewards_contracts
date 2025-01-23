@@ -15,7 +15,7 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
       POSTGRES_INITDB_ARGS: --data-checksums
     networks:
-      - kwilnet0
+      - kwil-reward
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 && sleep 1"]
       interval: 2s
@@ -30,12 +30,12 @@ services:
       GORACE: "halt_on_error=1 log_path=/app/kwil/datarace"
     volumes:
       - type: bind
-        source: { { .TestnetDir } }/{{ .NodeServicePrefix }}{{ .NodeNumber }}
+        source: $KWILD_ROOT_DIR
         target: /app/kwil
     networks:
-      - { { .Network } }
+      - kwil-reward
     depends_on:
-      { { .PGServicePrefix } }{ { .NodeNumber } }:
+      db:
         condition: service_healthy
     command: |
       start
@@ -44,7 +44,7 @@ services:
       --admin.listen=/tmp/kwild.socket
       --rpc.listen=0.0.0.0:8484
       --p2p.listen=0.0.0.0:6600
-      --db.host={{ .PGServicePrefix }}{{ .NodeNumber }}
+      --db.host=db
       --db.port=5432
       --db.user=kwild
       --db.pass=kwild
@@ -54,8 +54,26 @@ services:
       timeout: 6s
       retries: 10
 
+  signer:
+    image: kwil-reward-signer:latest
+    build:
+      context: ./goimpl
+      dockerfile: ./signer.dockerfile
+    depends_on:
+      kwild:
+        condition: service_healthy
+
+  poster:
+    image: kwil-reward-signer:latest
+    build:
+      context: .
+      dockerfile: ./poster.dockerfile
+    depends_on:
+      kwild:
+        condition: service_healthy
+
 networks:
-  kwilnet0:
+  kwil-reward:
     driver: bridge
     ipam:
       driver: default
