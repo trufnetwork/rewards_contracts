@@ -102,14 +102,16 @@ async function main(): Promise<void> {
     try {
         await kwil.LatestFinalized(1)
     } catch (err) {
+        // NOTE: just log, don't exit
+        // This is maily for the docker, bc the `namespace` may not created yet
         console.log("Cannot connecting to kwil", err);
-        process.exit(1);
     }
 
-    let state: State;
-    if (cfg.state_file == "") {
-        state = new State(); // in memory state
-    } else {
+    let state: State = new State(); // in memory state
+    if (cfg.state_file != "") {
+        if (!fs.existsSync(cfg.state_file)) {
+            fs.writeFileSync(cfg.state_file, "");
+        }
         state = State.LoadStateFromFile(cfg.state_file);
     }
 

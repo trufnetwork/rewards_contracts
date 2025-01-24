@@ -189,11 +189,12 @@
     "yocto-queue": "^0.1.0"
   },
   "scripts": {
-    "test:lib_reward": "npx hardhat test peripheral/lib/test/reward.test.ts",
     "test:unit": "npx hardhat test test/RewardDistributor.ts",
     "test:gas": "npx hardhat test --grep 'Gas Fee without GnosisSafe'",
-    "redeploy:local": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy_reward.ts --network localhost",
-    "redeploy:sepolia": "rm -rf ./ignition/deployments/chain-11155111; npx hardhat run scripts/deploy_reward.ts --network sepolia",
+    "test:lib_reward": "npx hardhat test peripheral/lib/test/reward.test.ts",
+    "test:lib_gonsis": "npx hardhat test peripheral/lib/test/sepolia_gnosis.test.ts",
+    "redeploy:local": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy_contract.ts --network localhost",
+    "redeploy:sepolia": "rm -rf ./ignition/deployments/chain-11155111; npx hardhat run scripts/deploy_contract.ts --network sepolia",
     "fork:sepolia": "npx hardhat node --fork $(grep SEPOLIA_RPC .env | cut -d '\"' -f2) --fork-block-number 7152609",
     "fork:deploy_safe": "npx hardhat run scripts/deploy_safe_fork.ts --config hardhat.config.fork.sepolia.ts",
     "build": "tsc build --noEmit"
@@ -201,7 +202,7 @@
   "scriptsComments": {
     "test:unit": "reward contract unit tests",
     "test:gas": "display gas consumption of interacting with Reward contract(without GnosisSafe)",
-    "redeploy:local": "redeploy Reward contract(with token) to local Hardhat node",
+    "redeploy:local": "redeploy Reward contract(with token) to local Hardhat node; need to run Hardhat node in a different terminal",
     "redeploy:sepolia": "redeploy Reward contract(with tokwn) to Sepolia test network",
     "fork:sepolia": "fork Sepolia network locally",
     "fork:deploy_safe": "deploy a Gnosis Safe wallet on forked local Sepolia network"

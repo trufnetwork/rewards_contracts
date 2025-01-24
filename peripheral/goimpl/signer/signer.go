@@ -9,6 +9,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -59,7 +60,11 @@ func NewApp(api reward.KwilRewardExtAPI, lastBlock int64, pkStr string, everyS i
 	if lastBlock == 0 { // sync from now
 		frs, err := api.FetchLatestRewards(context.Background(), 1)
 		if err != nil {
-			return nil, fmt.Errorf("fetch latest finalized reward: %w", err)
+			if strings.Contains(err.Error(), "namespace") && strings.Contains(err.Error(), "does not exist") {
+				// ignore the error if namespace doest not exist
+			} else {
+				return nil, fmt.Errorf("fetch latest finalized reward: %w", err)
+			}
 		}
 
 		if len(frs) == 1 {
@@ -176,10 +181,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var state *State
-	if cfg.StateFile == "" {
-		state = NewMemState()
-	} else {
+	state := NewMemState() // in memory state
+	if cfg.StateFile != "" {
+		// Ensure cfg.StateFile exists, create an empty file if it doesn't
+		if _, err := os.Stat(cfg.StateFile); os.IsNotExist(err) {
+			emptyFile, err := os.Create(cfg.StateFile)
+			if err != nil {
+				log.Fatalf("Failed to create state file: %v", err)
+			}
+			emptyFile.Close()
+		}
+
 		state, err = LoadStateFromFile(cfg.StateFile)
 		if err != nil {
 			log.Fatal(err)
@@ -201,7 +213,9 @@ func main() {
 	ctx := context.Background()
 	clt, err := client.NewClient(ctx, cfg.KwilRPC, opts)
 	if err != nil {
-		log.Fatal(err)
+		// NOTE: just log, don't exit
+		// This is maily for the docker, bc the `namespace` may not created yet
+		log.Println(err)
 	}
 
 	kwil := reward.NewKwilApi(clt, cfg.KwilNamespace)

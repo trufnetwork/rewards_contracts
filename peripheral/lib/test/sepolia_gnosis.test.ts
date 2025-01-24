@@ -15,7 +15,7 @@ describe("Crypto", function () {
 
     const safeAddress = "0xbBeaaA74777B1dc14935f5b7E96Bb0ed6DBbD596";
     const rewardAddress= "0x55EAC662C9D77cb537DBc9A57C0aDa90eB88132d";
-    const [ceo, cfo, eng, poster] = GenHDWallets(mnemonic);
+    const [ceo] = GenHDWallets(mnemonic);
 
     it("Only sign safe tx hash", async () => {
         console.log("safe address: ", safeAddress);
