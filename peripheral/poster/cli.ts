@@ -90,11 +90,6 @@ function loadConfig(configPath: string): PosterConfig {
 }
 
 async function main(): Promise<void> {
-    console.log("======", process.argv)
-    // if (process.argv.length != 2) {
-    //     console.log("Usage: kwil-reward-poster config-json-path");
-    // }
-
     if (process.argv.length != 3) {
         console.log("Usage: npx tsx ./cli.ts config-json-path");
         process.exit(1);
@@ -151,11 +146,13 @@ async function main(): Promise<void> {
         }
     }, cfg.sync_every);
 
-    process.on("SIGINT", () => {
-        logger.warn("Termination signal received. Cleaning up...");
-        clearInterval(intervalHandler);
-        process.exit(0);
-    });
+
+    ['SIGINT', 'SIGTERM', 'SIGQUIT']
+        .forEach(signal => process.on(signal, () => {
+            logger.warn("Termination signal received. Cleaning up...");
+            clearInterval(intervalHandler);
+            process.exit(0);
+        }));
 }
 
 main().catch(console.error);

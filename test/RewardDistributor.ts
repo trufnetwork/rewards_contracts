@@ -24,7 +24,7 @@ describe("RewardDistributor UnitTest", function () {
     const posterFee1 = parseUnits("1000000", "gwei")
     const posterFee2 = parseUnits("2000000", "gwei")
 
-    const kwilFirstRewardBlock = toBigInt(100);
+    const kwilFirstRewardBlockHash = '0x' + '1'.repeat(64);
 
     let rewardToken: IERC20;
 
@@ -101,7 +101,7 @@ describe("RewardDistributor UnitTest", function () {
 
         // generate first reward merkle tree
         const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-            [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
+            [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlockHash.toString());
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount, user1Amount: 100};
 
         const txResp = await rewardDist.connect(gnosisSafe).postReward(
@@ -119,7 +119,7 @@ describe("RewardDistributor UnitTest", function () {
 
         // generate first reward merkle tree
         const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
-            [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
+            [100,200,100], await rewardDist.getAddress(), kwilFirstRewardBlockHash.toString());
         const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
 
         const txResp =  await rewardDist.connect(gnosisSafe).postReward(
@@ -186,7 +186,7 @@ describe("RewardDistributor UnitTest", function () {
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
         const minEthValue = await rewardDist.posterFee();
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
-            recipient, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue});
+            recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue});
         return {rewardDist, rewardRoot: reward.root, proof, leaf, recipient, rewardClaimer, amount, txResp,
             paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
             recipientOldTokenBalance, contractOldTokenBalance};
@@ -206,7 +206,7 @@ describe("RewardDistributor UnitTest", function () {
         const {proof, leaf} = getMTreeProof(reward.tree, recipient);
         const minEthValue = await rewardDist.posterFee();
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
-            recipient, amount,kwilFirstRewardBlock, reward.root, proof, {value: minEthValue * toBigInt(2)});
+            recipient, amount,kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue * toBigInt(2)});
 
         return {rewardDist, rewardRoot: reward.root, leaf, recipient, rewardClaimer, amount, txResp,
             paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalPostedReward,
@@ -218,7 +218,7 @@ describe("RewardDistributor UnitTest", function () {
             const {rewardDist} = await loadFixture(postFirstRewardFixture);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, 100, kwilFirstRewardBlock, emptyRewardRoot, [], {value: 10})).to.be.revertedWith("Reward root not posted");
+                user1.address, 100, kwilFirstRewardBlockHash, emptyRewardRoot, [], {value: 10})).to.be.revertedWith("Reward root not posted");
         });
 
         it("Should revert if reward already claimed", async function(){
@@ -226,7 +226,7 @@ describe("RewardDistributor UnitTest", function () {
             await expect(txResp.wait()).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, amount, rewardClaimer);
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                recipient, amount, kwilFirstRewardBlock, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
+                recipient, amount, kwilFirstRewardBlockHash, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
         });
 
         it("Should revert if invalid proof(wrong leaf)", async () => {
@@ -238,7 +238,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                user1.address, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
         });
 
         it("Should revert if invalid proof(wrong proof)", async () => {
@@ -249,7 +249,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlock, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                user1.address, amount, kwilFirstRewardBlockHash, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
         })
 
         it("Should revert if insufficient payment", async () => {
@@ -261,7 +261,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue - toBigInt(1000)}))
+                user1.address, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue - toBigInt(1000)}))
                 .to.be.revertedWith("Insufficient payment for poster");
         })
 
@@ -385,7 +385,7 @@ describe("RewardDistributor UnitTest", function () {
             // post reward
             const _firstTree = genRewardMerkleTree(
                 allSignerAddrs,
-                allAmounts, await rewardDist.getAddress(), kwilFirstRewardBlock.toString());
+                allAmounts, await rewardDist.getAddress(), kwilFirstRewardBlockHash.toString());
             const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
             const postRewardTxResp = await rewardDist.connect(gnosisSafe).postReward(
                 reward.root,
@@ -401,7 +401,7 @@ describe("RewardDistributor UnitTest", function () {
             const {proof, leaf} = getMTreeProof(reward.tree, recipient);
             const minEthValue = await rewardDist.posterFee();
             const claimRewardTxResp = await rewardDist.connect(rewardClaimer).claimReward(
-                recipient, amount, kwilFirstRewardBlock, reward.root, proof, {value: minEthValue});
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue});
             const claimRewardTxReceipt = await claimRewardTxResp.wait();
 
             console.log(`Claim reward Fee    `, formatEther(claimRewardTxReceipt!.fee),
@@ -463,3 +463,14 @@ describe("RewardDistributor UnitTest", function () {
     //       ✔ threshold 5 (1105ms)
     //
 });
+
+
+// This if goimpl reference.
+describe("OpenZeppelin Sign message", () => {
+    it("Should have expect signature", async () => {
+        const msg = "sosup";
+        const [n, signer1] = await hre.ethers.getSigners();
+
+        expect(await signer1.signMessage(msg)).to.equal("0x1fc551d4d1f0901b64432dc59f372beb231adfa2021e1fa5a2cc314df7d98f114ff8afa4603ceee05f768532b615807df8ac358b64b318baaeef5237301240771b")
+    });
+})

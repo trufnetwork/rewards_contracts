@@ -5,6 +5,7 @@ import {RewardContractABI, KwilAPI, KwilFinalizedReward} from "../lib/reward";
 import {RewardSafe} from "../lib/gnosis";
 import {getTxRevertMessage} from "../lib/utils";
 import {FinalizedReward, RewardRecord, State} from "./state";
+import fs from "fs";
 
 const CONSTANTS = {
     FETCH_KWIL_REWARD_BATCH_LIMIT: 10,
@@ -71,16 +72,16 @@ class EVMPoster {
     }
 
     // get a list of finalized rewards and handle them in batch.
-    // since we're bookkeeping synced rewards, we can use this to
+    // we CANNOT use `LatestFinalized` as it will skip some rewards.
     async fetchPendingRewards(): Promise<void> {
         try {
-            this.logger.info('Fetching pending rewards')
+            this.logger.debug('Fetching pending rewards')
             const reqs = await this.kwil.ListFinalized(
             this.state.lastBlock,
             CONSTANTS.FETCH_KWIL_REWARD_BATCH_LIMIT)
 
             if (reqs.length === 0) {
-              this.logger.info("No new rewards")
+              this.logger.debug("No new rewards")
               return
             }
 
@@ -112,15 +113,19 @@ class EVMPoster {
     }
 
     // Syncs already posted rewards to local state/db from state.lastBlock.
+    // NOTE: do we really need this? I only need the next reward to post.
+    // TODO: if the extension implements `newer_finalized`, we can use that
+    // API directly, to get the next reward that needs to be posted
     async fastSync() {
         // all rewards with older safeNonce are posted.
+
         const safeNonce = await this.safe.getNonce();
         let syncing = true;
         const batchSize = 30;
 
         while (syncing) {
             try {
-                this.logger.info({afterBlock: this.state.lastBlock, batch: batchSize}, 'Sync rewards')
+                this.logger.info({afterBlock: this.state.lastBlock, batch: batchSize}, 'fast sync posted rewards')
 
                 const reqs = await this.kwil.ListFinalized(
                     this.state.lastBlock, batchSize)
@@ -148,6 +153,8 @@ class EVMPoster {
                 break // synced
             }
         }
+
+        this.logger.info({lastBlock: this.state.lastBlock}, 'start to sync new rewards')
     }
 
     async checkRewardPostingStatus() {

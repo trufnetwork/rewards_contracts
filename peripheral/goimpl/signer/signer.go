@@ -6,16 +6,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/kwilteam/kwil-db/core/client"
-	clientTypes "github.com/kwilteam/kwil-db/core/client/types"
-	kwilCrypto "github.com/kwilteam/kwil-db/core/crypto"
-	"github.com/kwilteam/kwil-db/core/crypto/auth"
 	"log"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/kwilteam/kwil-db/core/client"
+	clientTypes "github.com/kwilteam/kwil-db/core/client/types"
+	kwilCrypto "github.com/kwilteam/kwil-db/core/crypto"
+	"github.com/kwilteam/kwil-db/core/crypto/auth"
 
 	"goimpl/reward"
 )
@@ -68,6 +68,8 @@ func NewApp(api reward.KwilRewardExtAPI, lastBlock int64, pkStr string, everyS i
 		} else {
 			logger.Info("no finalized reward found, sync from height 0")
 		}
+	} else {
+		logger.Info("sync from last seen reward", "height", lastBlock)
 	}
 
 	return &App{

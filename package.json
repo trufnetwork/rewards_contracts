@@ -189,6 +189,7 @@
     "yocto-queue": "^0.1.0"
   },
   "scripts": {
+    "test:lib_reward": "npx hardhat test peripheral/lib/test/reward.test.ts",
     "test:unit": "npx hardhat test test/RewardDistributor.ts",
     "test:gas": "npx hardhat test --grep 'Gas Fee without GnosisSafe'",
     "redeploy:local": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy_reward.ts --network localhost",

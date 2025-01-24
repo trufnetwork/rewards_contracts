@@ -67,7 +67,7 @@ func Test_kwilApi_SearchPendingRewards(t *testing.T) {
 
 	k := NewKwilApi(clt, "y_rewards")
 
-	got, err := k.SearchPendingRewards(ctx, 0, 1000000)
+	got, err := k.SearchPendingRewards(ctx, 0, 10000)
 	require.NoError(t, err)
 
 	for _, r := range got {
@@ -139,10 +139,6 @@ func Test_kwilApi_VoteEpoch(t *testing.T) {
 
 	sig, err := EthGnosisSignDigest(signHash, pk)
 	require.NoError(t, err)
-
-	fmt.Printf("Yaiba.vote.batch.input--------digest:%x, sig:%x\n", signHash, sig)
-
-	//EthGnosisVerify(sig)
 
 	h, err := k.VoteEpoch(ctx, signHash, sig)
 	require.NoError(t, err)
