@@ -4,8 +4,8 @@
   "safe_address": "", //REMOTE: GnosisSafe wallet addres
   "reward_address": "", //REMOVE: RewardDistributor contract addres
   "sync_every": 60000, //REMOVE: milliseconds
-  "kwil_rpc": "",
-  "kwil_chain_id": "",
-  "kwil_namespace": "",
-  "state_file": "" //REMOVE: db file;absolute path
+  "kwil_rpc": "http://localhost:8484",
+  "kwil_chain_id": "kwil-testnet",
+  "kwil_namespace": "rewards",
+  "state_file": "/tmp/reward-poster-state.json" //REMOVE: db file;absolute path
 }

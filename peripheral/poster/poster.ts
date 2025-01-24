@@ -113,9 +113,12 @@ class EVMPoster {
     }
 
     // Syncs already posted rewards to local state/db from state.lastBlock.
-    // NOTE: do we really need this? I only need the latest
+    // NOTE: do we really need this? I only need the next reward to post.
+    // TODO: if the extension implements `newer_finalized`, we can use that
+    // API directly, to get the next reward that needs to be posted
     async fastSync() {
         // all rewards with older safeNonce are posted.
+
         const safeNonce = await this.safe.getNonce();
         let syncing = true;
         const batchSize = 30;

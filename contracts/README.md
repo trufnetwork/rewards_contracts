@@ -36,6 +36,9 @@ Rewards are posted using a Merkle root, which represents the entire set of eligi
 - **Reward Roots**: A mapping of posted reward roots to the addresses that submitted them.
 - **Poster Reward**: A fee (in gwei) paid to the poster of a reward root by claimants when they claim their reward.
 
+> A reward in this contract is the aggregation of multiple rewards in a Kwil epoch (the discreet period in which rewards are accumulated);
+> a merkle tree is generated from those rewards, and it's referenced by the merkle tree root. In contract, we store the root of the tree.
+
 ### Claiming Rewards
 
 Recipients can claim their rewards by providing a valid Merkle proof that verifies their inclusion in the posted reward tree. The contract handles the transfer of rewards and ensures the reward has not already been claimed.

@@ -3,7 +3,7 @@ import {keccak256, AbiCoder, toBigInt, getBytes, Interface, BigNumberish, ethers
 import { StandardMerkleTree } from "@openzeppelin/merkle-tree";
 import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
 import {assert} from "chai";
-import {NodeKwil, Utils} from "../../../../work/kwil-js/dist"; // TODO: change this
+import {NodeKwil, Utils} from "../../kwil-js/dist"; // TODO: change this
 
 const abiCode = new AbiCoder();
 

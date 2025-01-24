@@ -10,14 +10,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title RewardDistributor - Kwil Reward distribution contract.
- * @dev A reward in this contract is the aggregation of multiple rewards in a kwil epoch (the discreet period in which
- * rewards are accumulated); a merkle tree is generated from those rewards and it's referenced by the merkle tree root.
- * In this contract, we store the root of the tree.
  */
 contract RewardDistributor is ReentrancyGuard {
     /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
-    /// ensures a unique reward hash in a Kwil network.
+    /// ensures a unique reward hash per contract in a Kwil network.
     /// @dev Since root(reward hash) is unique, it's used to prevent TX replay as well.
     /// To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/78cf249506eb9f892e1108f0b44553313ab121b7/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
@@ -86,7 +83,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev This is the only method transferring reward token out of this contract.
     /// @dev On success, the recipient will receive some reward tokens. If the caller
     /// is not the recipient, there is no reimbursement for the caller; if needed, it's settled off-chain.
-    /// @dev Since we need to transfer reward token to the recipient encoded in the Merkle tree,
+    /// @dev Since we need to know the amount of token to transfer to the recipient,
     /// we have to regenerate and verify the leaf in the contract to ensure the authenticity.
     /// @param recipient The wallet address the reward will be send to.
     /// @param amount The amount of reward to be claimed.
