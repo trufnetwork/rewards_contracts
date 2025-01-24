@@ -7,8 +7,6 @@ import {NodeKwil, Utils} from "../../kwil-js/dist"; // TODO: change this
 
 const abiCode = new AbiCoder();
 
-// NOTE: Should we include the Kwil chain ID so we can ensure the root is unique
-// across Kwil networks.
 const MerkleLeafEncoding = ["address", "uint256", "address", "bytes32"];
 
 // generate a reward merkle tree with each leaf as `(recipient, amount, contract_address, kwil_block_hash)`

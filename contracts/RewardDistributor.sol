@@ -16,7 +16,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network.
     /// @dev Since root(reward hash) is unique, it's used to prevent TX replay as well.
-    /// To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/78cf249506eb9f892e1108f0b44553313ab121b7/peripheral/lib/reward.ts#L15
+    /// To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
