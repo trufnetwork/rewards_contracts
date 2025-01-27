@@ -65,7 +65,7 @@ func Test_kwilApi_SearchPendingRewards(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "rewards")
 
 	got, err := k.SearchPendingRewards(ctx, 0, 10000)
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func Test_kwilApi_FetchEpochRewards(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "rewards")
 
 	got, err := k.FetchEpochRewards(ctx, 0, 10)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func Test_kwilApi_FetchLatestFinalizedReward(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "rewards")
 
 	got, err := k.FetchLatestRewards(ctx, 1)
 	require.NoError(t, err)
@@ -115,7 +115,7 @@ func Test_kwilApi_ProposeEpoch(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", opts)
 	require.NoError(t, err)
 
-	k := NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "rewards")
 
 	h, err := k.ProposeEpoch(ctx)
 	require.NoError(t, err)
@@ -131,7 +131,7 @@ func Test_kwilApi_VoteEpoch(t *testing.T) {
 	clt, err := client.NewClient(ctx, "http://localhost:8484", opts)
 	require.NoError(t, err)
 
-	k := NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "rewards")
 
 	signHashHex := "dd4bf09c5800ab9bd8a461955f33a13970c1dffd0f57e0063c7da5e982cdb9a0"
 	signHash, err := hex.DecodeString(signHashHex)
@@ -146,24 +146,20 @@ func Test_kwilApi_VoteEpoch(t *testing.T) {
 	fmt.Println(h)
 }
 
-func Test_kwilApi_GetProof(t *testing.T) {
+func Test_kwilApi_GetClaimParameters(t *testing.T) {
 	ctx := context.Background()
 
 	clt, err := client.NewClient(ctx, "http://localhost:8484", nil)
 	require.NoError(t, err)
 
-	k := NewKwilApi(clt, "y_rewards")
+	k := NewKwilApi(clt, "rewards")
 
-	signHashHex := "4c4f2b113a2cd5dee0b529a31df514340af60031dbd0d9424e55c49f5615098f"
+	signHashHex := "1fb8ee6cc5378c92762fddd381db4b50cf918378028dd1ca6656205e661cf1ec"
 	signHash, err := hex.DecodeString(signHashHex)
 	require.NoError(t, err)
 
-	got, err := k.GetProof(ctx, signHash, "0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7")
+	got, err := k.GetClaimParam(ctx, signHash, "0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7")
 	require.NoError(t, err)
 
-	for _, r := range got {
-		j, err := json.MarshalIndent(r, "", "  ")
-		require.NoError(t, err)
-		fmt.Println("===", string(j))
-	}
+	fmt.Println(got)
 }

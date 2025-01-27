@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"encoding/base64"
 	"fmt"
 	"golang.org/x/exp/slices"
 
@@ -33,6 +32,7 @@ type EpochReward struct {
 	SafeNonce  int64
 	SignHash   []byte // SignHash is Chain aware, it's from GnosisSafeTx
 	ContractID types.UUID
+	BlockHash  []byte
 	CreatedAt  int64
 	Voters     []string
 }
@@ -51,6 +51,15 @@ type FinalizedReward struct {
 	SafeNonce    int64
 	SignHash     []byte
 	ContractID   types.UUID
+	BlockHash    []byte
+}
+
+type ClaimParam struct {
+	Recipient  string   `param:"recipient"`
+	Amount     string   `param:"amount"`
+	BlockHash  string   `param:"block_hash"`
+	RewardRoot string   `param:"reward_root"`
+	Proofs     []string `param:"proofs"`
 }
 
 type KwilRewardExtAPI interface {
@@ -116,7 +125,7 @@ func (k *KwilApi) FetchEpochRewards(ctx context.Context, startHeight int64, limi
 	for i, v := range res.QueryResult.Values {
 		er := &EpochReward{}
 		err = types.ScanTo(v, &er.ID, &er.StartHeight, &er.EndHeight, &er.TotalRewards,
-			&er.RewardRoot, &er.SafeNonce, &er.SignHash, &er.ContractID, &er.CreatedAt, &er.Voters)
+			&er.RewardRoot, &er.SafeNonce, &er.SignHash, &er.ContractID, &er.BlockHash, &er.CreatedAt, &er.Voters)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +153,7 @@ func (k *KwilApi) FetchLatestRewards(ctx context.Context, limit int) ([]*Finaliz
 		fr := &FinalizedReward{}
 		err = types.ScanTo(v, &fr.ID, &fr.Voters, &fr.Signatures, &fr.EpochID,
 			&fr.CreatedAt, &fr.StartHeight, &fr.EndHeight, &fr.TotalRewards,
-			&fr.RewardRoot, &fr.SafeNonce, &fr.SignHash, &fr.ContractID)
+			&fr.RewardRoot, &fr.SafeNonce, &fr.SignHash, &fr.ContractID, &fr.BlockHash)
 		if err != nil {
 			return nil, err
 		}
@@ -178,8 +187,8 @@ func (k *KwilApi) VoteEpoch(ctx context.Context, signHash []byte, signature []by
 	return res.String(), nil
 }
 
-func (k *KwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) ([][]byte, error) {
-	procedure := "get_proof"
+func (k *KwilApi) GetClaimParam(ctx context.Context, signHash []byte, wallet string) (*ClaimParam, error) {
+	procedure := "claim_param"
 	input := []any{signHash, wallet}
 
 	res, err := k.clt.Call(ctx, k.ns, procedure, input)
@@ -191,17 +200,14 @@ func (k *KwilApi) GetProof(ctx context.Context, signHash []byte, wallet string) 
 		return nil, nil
 	}
 
-	proofs := make([][]byte, len(res.QueryResult.Values))
-	for _, v := range res.QueryResult.Values {
-		ps := v[0].([]any)
-		for i, p := range ps {
-			proofs[i], err = base64.StdEncoding.DecodeString(p.(string))
-			if err != nil {
-				return nil, err
-			}
-		}
+	param := &ClaimParam{}
+	err = types.ScanTo(res.QueryResult.Values[0], &param.Recipient, &param.Amount,
+		&param.BlockHash, &param.RewardRoot, &param.Proofs)
+	if err != nil {
+		return nil, err
 	}
-	return proofs, nil
+
+	return param, nil
 }
 
 // NOTE: this is copied from erc20-reward-extension/reward/crypto.go

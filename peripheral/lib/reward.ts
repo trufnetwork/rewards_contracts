@@ -75,7 +75,8 @@ interface KwilFinalizedReward {
     reward_root: string,
     safe_nonce: number,
     sign_hash: string,
-    contract_id: string
+    contract_id: string,
+    block_hash: string,
 }
 
 /**

@@ -1,13 +1,17 @@
 import hre from "hardhat";
 import dotenv from 'dotenv';
+import {formatUnits, parseUnits} from "ethers";
 dotenv.config();
 
 
 async function info(addr: string) {
+    console.log("0.04 ether", parseUnits("0.04", "ether"));
+
     const rd = await hre.ethers.getContractAt("RewardDistributor", addr);
 
     console.log(`RewardToken: ${await rd.rewardToken()}`)
     console.log(`Nonce: ${await rd.nonce()}`);
+
 }
 
 async function main() {
