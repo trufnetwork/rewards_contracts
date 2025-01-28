@@ -1,13 +1,10 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 const RewardDistributorModule = buildModule("RewardDistributor", (m) => {
-    const deployer = m.getAccount(0);
     const rd = m.contract("RewardDistributor",
-        [m.getParameter("safe"), m.getParameter("posterFee"), m.getParameter("rewardToken")],
-        {from: deployer}
-    );
+        [m.getParameter("safe"), m.getParameter("posterFee"), m.getParameter("rewardToken")]);
 
-    return {rd };
+    return {rd};
 });
 
 export default RewardDistributorModule;

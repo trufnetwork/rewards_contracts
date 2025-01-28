@@ -11,11 +11,13 @@ async function info(addr: string) {
 
     console.log(`RewardToken: ${await rd.rewardToken()}`)
     console.log(`Nonce: ${await rd.nonce()}`);
+    console.log(`PosterFee: ${formatUnits(await rd.posterFee(), "ether")} eth`);
+    console.log(`PostedRewards: ${formatUnits(await rd.postedRewards(), "ether")} token`);
 
 }
 
 async function main() {
-    const addr = "0x55EAC662C9D77cb537DBc9A57C0aDa90eB88132d";
+    const addr = "0x528B94ff9218a7b5eaa6964b946172598F254E09";
 
     info(addr);
 }

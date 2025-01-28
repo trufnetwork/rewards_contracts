@@ -48,11 +48,11 @@ async function main() {
     assert(rewardAddress, "reward address not set");
 
     await claim(rewardAddress,
-        "",
+        "0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7",
         "40000000000000000", // 0
-        "0x0cd700ac4f7506f24926f5423b2e808b5c8839c9def79e80da0498d057dcc8f8", // 0x...
-        "0x63965d172e0ba40e42634aa99aa96b7cfc75c146e585c2d997d5d05d3a92340c", // 0x...
-        ["0x6db5d9c555994b9aef499e70315f4e5ab90a2e317f458fc361704fda9f7c1f77"], // [0x...,]
+        "0xe0453b16230d1b4c49800f73e0688d6b6cf3935094a1be83567b9381c249207e", // 0x...
+        "0x2e5119b73b5e2dd7ba06a25a92aa6900552c86378f4cf1e639d892194454b804", // 0x...
+        ["0xe737432648ae7ca95e3c0d80b698765b88a74e5d96fccfca6bbd219298a271eb"], // [0x...,]
         claimer);
 }
 
