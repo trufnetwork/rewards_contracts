@@ -1,14 +1,14 @@
 import hre from "hardhat";
-import KwilMockToken from "../ignition/modules/KwilMockToken";
 import {parseUnits} from "ethers";
 import dotenv from 'dotenv';
-import {getChainSpecificDefaultSaltNonce} from "../peripheral/lib/reward";
+import {getChainSpecificSaltNonce} from "../peripheral/lib/reward";
 import deployedSepolia from "../ignition/deployments/chain-11155111/deployed_addresses.json";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 
 dotenv.config();
 
-async function deploy(chainID: number, deployer:HardhatEthersSigner, safeAddr: string, factoryAddr: string,  tokenAddr: string, initFee: string) {
+async function deploy(chainId: number, deployer:HardhatEthersSigner, safeAddr: string,
+                      factoryAddr: string,  tokenAddr: string, initFee: string, saltNonce: string) {
     if (!safeAddr) {
         console.log("safe address is not configured")
         return;
@@ -23,9 +23,9 @@ async function deploy(chainID: number, deployer:HardhatEthersSigner, safeAddr: s
 
     const factory= await hre.ethers.getContractAt("RewardDistributorFactory", factoryAddr);
 
-    const predictAddr = await factory.predicateAddr(getChainSpecificDefaultSaltNonce(chainID));
+    const predictAddr = await factory.predicateAddr(saltNonce);
     const txResp = await factory.connect(deployer).create(
-        safeAddr, parseUnits(initFee, "ether"), tokenAddr, getChainSpecificDefaultSaltNonce(chainID))
+        safeAddr, parseUnits(initFee, "ether"), tokenAddr, saltNonce)
     // console.log("txResp", txResp);
     const txRecipt = await txResp.wait();
     // console.log("txRecipt", txRecipt);
@@ -40,25 +40,30 @@ async function deploy(chainID: number, deployer:HardhatEthersSigner, safeAddr: s
 }
 
 async function main() {
+
     console.log("Current block height: ", await hre.ethers.provider.getBlockNumber())
-    console.log("Current chainId: ", hre.network.config.chainId ?? "")
+    console.log("Current chainId: ", hre.network.config.chainId)
     console.log("Current network: ", hre.network.name)
+    const chainId = hre.network.config.chainId ?? 11155111;
+
+    const [deployer] = await hre.ethers.getSigners();
+    const deployerNonce = await deployer.getNonce()
 
     const safeAddr = "0x56D510E4782cDed87F8B93D260282776adEd3f4B";
     const rewardTokenAddr = "0x5e4ba745f8444bD1924d5467943C7b6375a09a47";
     const initFee = "0.001";
+    const saltNonce = getChainSpecificSaltNonce(chainId.toString(),
+        deployer.address,
+        deployerNonce.toString());
 
-    const [deployer] = await hre.ethers.getSigners();
 
-    switch (hre.network.config.chainId) {
+    switch (chainId) {
         case 11155111: {
-
-            const chainID = hre.network.config.chainId!;
-
-            await deploy(chainID, deployer, safeAddr,
+            await deploy(chainId, deployer, safeAddr,
                 deployedSepolia["RewardDistributorFactory#RewardDistributorFactory"],
                  rewardTokenAddr,
-                initFee);
+                initFee,
+                saltNonce);
             break;
         }
         default: {

@@ -18,6 +18,10 @@ function getChainSpecificDefaultSaltNonce(chainId: number): string {
     return keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId.toString()))
 }
 
+function getChainSpecificSaltNonce(chainId: string, deployer: string, deployerNonce: string): string {
+    return keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId + deployer + deployerNonce))
+}
+
 // generate a reward merkle tree with each leaf as `(recipient, amount, contract_address, kwil_block_hash)`
 function genRewardMerkleTree(users: string[], amounts: number[], rewardContract: string, kwilBlockHash: string): {tree: StandardMerkleTree<any>, amount: bigint} {
     assert(users.length === amounts.length, "users and amounts should have the same length");
@@ -210,6 +214,7 @@ export {
     genPostRewardTxData,
     genUpdatePosterFeeTxData,
     getChainSpecificDefaultSaltNonce,
+    getChainSpecificSaltNonce,
     RewardContractABI,
     // types
     KwilFinalizedReward,
