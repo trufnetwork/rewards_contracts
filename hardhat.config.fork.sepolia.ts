@@ -12,7 +12,7 @@ const config: HardhatUserConfig = {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
       forking: {
           url: process.env.SEPOLIA_RPC!,
-          blockNumber: 7152609,
+          blockNumber: 7605449,
       },
       chainId: 11155111,  // chainId must be the same as the forking network
     },
