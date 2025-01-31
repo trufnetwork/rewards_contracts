@@ -110,18 +110,6 @@ class KwilAPI implements KwilRewardPosterAPI {
         this.ns = ns;
     }
 
-    async ListPending(blockHeight: number, limit: number) {
-        const callBody = {
-            namespace: this.ns,
-            name: "search_rewards",
-            inputs: [{$param_1: blockHeight, $param_2: limit}]
-        }
-        // TODO: use stream API?
-        const res        = await this.kwil.call(callBody)
-        console.log("res=============", res)
-        console.log("res=============", res.data)
-    }
-
     async ListFinalized(blockHeight: number, limit: number): Promise<KwilFinalizedReward[]> {
         const callBody = {
             namespace: this.ns,
@@ -130,31 +118,11 @@ class KwilAPI implements KwilRewardPosterAPI {
         }
         // TODO: use stream API?
         const res        = await this.kwil.call(callBody)
-        // Parse the query result into objects
-        // const queryResult = res?.data?.query_result;
         if (!res.data) {
-            // console.error("Invalid query result:", res);
             return [];
         }
 
-        // return this._parseQueryResult<KwilFinalizedReward>(queryResult);
         return res.data.map(row => {return row as KwilFinalizedReward;});
-    }
-
-    private _parseQueryResult<T>(queryResult: { column_names: string[]; column_types: string[]; values: any[] }): T[] {
-        const {column_names, values} = queryResult;
-
-        if (!values || values.length === 0) {
-            return [];
-        }
-
-        return values.map((row: any[]) => {
-            const record: { [key: string]: any } = {};
-            column_names.forEach((key, index) => {
-                record[key] = row[index];
-            });
-            return record as T;
-        });
     }
 
     async LatestFinalized(limit: number): Promise<KwilFinalizedReward[]> {
@@ -165,46 +133,12 @@ class KwilAPI implements KwilRewardPosterAPI {
         }
         // TODO: use stream API?
         const res        = await this.kwil.call(callBody);
-        // Parse the query result into objects
-        // const queryResult = res?.data?.query_result;
-        // if (!queryResult) {
-        //     console.error("Invalid query result:", res);
-        //     return [];
-        // }
-        //
-        // return this._parseQueryResult<KwilFinalizedReward>(queryResult);
-
         if (!res.data) {
-            // console.error("Invalid query result:", res);
             return [];
         }
 
-        // return this._parseQueryResult<KwilFinalizedReward>(queryResult);
         return res.data.map(row => {return row as KwilFinalizedReward;});
     }
-
-    // async getRewardProof(signHash: string, wallet: string): Promise<string[]> {
-    //     const callBody = {
-    //         dbid: this.ns,
-    //         name: "get_proof",
-    //         inputs: [{a: signHash}, {b: wallet}]
-    //     }
-    //     // TODO: use stream API?
-    //     const res        = await this.kwil.call(callBody);
-    //     // Parse the query result into objects
-    //     // const queryResult = res?.data?.query_result;
-    //     // if (!queryResult) {
-    //     //     console.error("Invalid query result:", res);
-    //     //     return [];
-    //     // }
-    //     //
-    //     // return queryResult.values
-    //
-    //     if (!res.data) {
-    //         // console.error("Invalid query result:", res);
-    //         return [];
-    //     }
-    // }
 }
 
 export {
