@@ -10,10 +10,6 @@ const config: HardhatUserConfig = {
     hardhat: {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
       gasPrice: 1000000000,
-        // forking: {
-        //     url: process.env.SEPOLIA_RPC!,
-        //     blockNumber: 7605449,
-        // },
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC,

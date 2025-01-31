@@ -59,11 +59,18 @@ describe("RewardDistributor UnitTest", function () {
 
     // ------------
 
+    async function beforeDeployRewardContractFixture() {
+        // need to make a tx
+        await user1.sendTransaction({to: user1.address, value: parseUnits("0.1", "ether")});
+    }
+
     async function deployRewardContractFixture() {
-        // const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-        // const rewardDist = await RewardDist.connect(networkOwner).deploy();
+        await loadFixture(beforeDeployRewardContractFixture);
+
         const predictAddr = await rewardDistFactory.predicateAddr(deploySalt);
-        const txResp = await rewardDistFactory.connect(networkOwner).create(gnosisSafe, posterFee1, await rewardToken.getAddress(), getChainSpecificDefaultSaltNonce(chainId));
+        console.log("deploy rd predictAddr: ++++", predictAddr);
+        const txResp = await rewardDistFactory.connect(networkOwner).create(
+            gnosisSafe, posterFee1, await rewardToken.getAddress(), deploySalt);
         await txResp.wait();
 
         const rewardDist = await hre.ethers.getContractAt("RewardDistributor", predictAddr);
@@ -73,36 +80,21 @@ describe("RewardDistributor UnitTest", function () {
 
     describe("Deployment", function(){
         it("Should revert if invalid safe(empty address)", async function(){
-            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-
-            // await expect(RewardDist.connect(networkOwner).deploy(
-            //     zeroAddress(), posterFee1, rewardToken)).to.be.revertedWith("ZERO ADDRESS");
-
             await expect(rewardDistFactory.connect(networkOwner).create(
                 zeroAddress(), posterFee1, rewardToken, deploySalt)).to.be.revertedWith("ZERO ADDRESS");
         })
 
         it("Should revert if invalid rewardToken(empty address)", async function(){
-            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-
-            // await expect(RewardDist.connect(networkOwner).deploy(
-            //     gnosisSafe, posterFee1, zeroAddress())).to.be.revertedWith("ZERO ADDRESS");
-
             await expect(rewardDistFactory.connect(networkOwner).create(
                 gnosisSafe, posterFee1, zeroAddress(), deploySalt)).to.be.revertedWith("ZERO ADDRESS");
         })
 
         it("Should revert if posterFee = 0", async function(){
-            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-
-            // await expect(RewardDist.connect(networkOwner).deploy(
-            //     gnosisSafe, 0, rewardToken)).to.be.revertedWith("PostFee zero");
-
             await expect(rewardDistFactory.connect(networkOwner).create(
                 gnosisSafe, 0, rewardToken, deploySalt)).to.be.revertedWith("PostFee zero");
         })
 
-        it("Should create different reward contract on every create", async function(){
+        it("Should create same reward contract with same salt", async function(){
             const {rewardDist, posterFee, rewardToken} = await loadFixture(deployRewardContractFixture);
 
             expect(await rewardDist.rewardToken()).changeTokenBalance(rewardToken, rewardDist, 0);
@@ -111,7 +103,7 @@ describe("RewardDistributor UnitTest", function () {
             expect(await rewardDist.safe()).to.equal(gnosisSafe.address);
 
             const {rewardDist:rewardDist1} = await loadFixture(deployRewardContractFixture);
-            expect(rewardDist1).to.not.equal(rewardDist);
+            expect(rewardDist1).to.equal(rewardDist);
         })
 
         it("Should init correctly", async function(){
@@ -275,7 +267,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
         });
 
         it("Should revert if invalid proof(wrong proof)", async () => {
@@ -286,7 +278,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlockHash, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
         })
 
         it("Should revert if insufficient payment", async () => {
@@ -298,7 +290,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue - toBigInt(1000)}))
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue - toBigInt(1000)}))
                 .to.be.revertedWith("Insufficient payment for poster");
         })
 
@@ -390,74 +382,81 @@ describe("RewardDistributor UnitTest", function () {
     });
 
 
+    async function testGasFee(threshold: number) {
+        console.log("With threshold(also merkle tree leafs) = ", threshold);
+        const _signers = await hre.ethers.getSigners();
+        const allSigners = _signers.slice(0, threshold);
+        const allSignerAddrs = allSigners.map(signer => signer.address);
+        const allAmounts = allSigners.map((_, i) => (i+1)*100);
+
+        // deploy reward contract
+        const predictAddr = await rewardDistFactory.predicateAddr(deploySalt);
+        const txResp = await rewardDistFactory.connect(networkOwner).create(
+            gnosisSafe, posterFee1, await rewardToken.getAddress(), deploySalt);
+        const createTxReceipt = await txResp.wait();
+        const rewardDist = await hre.ethers.getContractAt("RewardDistributor", predictAddr);
+
+        console.log(`Create contract     `, formatEther(createTxReceipt!.fee),
+            ` ether = ${createTxReceipt!.gasUsed} * ${formatUnits(createTxReceipt!.gasPrice, 'gwei')} gwei`);
+
+        // fund reward contract
+        await rewardToken.transfer((await rewardDist.getAddress()), parseUnits("1000", "ether"));
+
+        // post reward
+        const _firstTree = genRewardMerkleTree(
+            allSignerAddrs,
+            allAmounts, await rewardDist.getAddress(), kwilFirstRewardBlockHash.toString());
+        const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
+        const postRewardTxResp = await rewardDist.connect(gnosisSafe).postReward(
+            reward.root,
+            reward.amount,);
+        const postRewardTxReceipt = await postRewardTxResp.wait();
+
+        console.log(`Post reward Fee     `, formatEther(postRewardTxReceipt!.fee),
+            ` ether = ${postRewardTxReceipt!.gasUsed} * ${formatUnits(postRewardTxReceipt!.gasPrice, 'gwei')} gwei`);
+
+        // claim reward (threshold doesn't matter, tree structure matters)
+        const recipient = allSignerAddrs[2];
+        const amount = toBigInt(300); // need to be the same as what's in the tree.
+        const {proof, leaf} = getMTreeProof(reward.tree, recipient);
+        const minEthValue = await rewardDist.posterFee();
+        const claimRewardTxResp = await rewardDist.connect(rewardClaimer).claimReward(
+            recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue});
+        const claimRewardTxReceipt = await claimRewardTxResp.wait();
+
+        console.log(`Claim reward Fee    `, formatEther(claimRewardTxReceipt!.fee),
+            ` ether = ${claimRewardTxReceipt!.gasUsed} * ${formatUnits(claimRewardTxReceipt!.gasPrice, 'gwei')} gwei`);
+
+        // update poster fee
+        const fee = posterFee2;
+        const updatePosterFeeTxResp = await rewardDist.connect(gnosisSafe).updatePosterFee(fee);
+        const updatePosterFeeTxReceipt = await updatePosterFeeTxResp.wait();
+
+        console.log(`Update posterFee Fee`, formatEther(updatePosterFeeTxReceipt!.fee),
+            ` ether = ${updatePosterFeeTxReceipt!.gasUsed} * ${formatUnits(updatePosterFeeTxReceipt!.gasPrice, 'gwei')} gwei`);
+    }
+
     // This is not a test, it just shows the gas cost with different threshold signature.
     // To simplify, `threshold` equals `len(merkle tree leafs)`
     describe("Gas Fee without GnosisSafe", function () {
-        async function testGasFee(threshold: number) {
-            console.log("With threshold(also merkle tree leafs) = ", threshold);
-            const _signers = await hre.ethers.getSigners();
-            const allSigners = _signers.slice(0, threshold);
-            const allSignerAddrs = allSigners.map(signer => signer.address);
-            const allAmounts = allSigners.map((_, i) => (i+1)*100);
-
-            // deploy reward contract
-            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-            const predictAddr = await rewardDistFactory.predicateAddr(deploySalt);
-            const txResp = await rewardDistFactory.connect(networkOwner).create(gnosisSafe, posterFee1, await rewardToken.getAddress(), deploySalt);
-            await txResp.wait();
-            const rewardDist = await hre.ethers.getContractAt("RewardDistributor", predictAddr);
-            // const rewardDist = await RewardDist.connect(networkOwner).deploy(gnosisSafe, posterFee1, rewardToken);
-            // const rewardDist = await rewardDistFactory.connect(networkOwner).create(gnosisSafe, posterFee1, rewardToken);
-            const deployTxReceipt = await rewardDist.deploymentTransaction()!.wait();
-            console.log(`Deploy contract     `, formatEther(deployTxReceipt!.fee),
-                ` ether = ${deployTxReceipt!.gasUsed} * ${formatUnits(deployTxReceipt!.gasPrice, 'gwei')} gwei`);
-
-            // fund reward contract
-            await rewardToken.transfer((await rewardDist.getAddress()), parseUnits("1000", "ether"));
-
-            // post reward
-            const _firstTree = genRewardMerkleTree(
-                allSignerAddrs,
-                allAmounts, await rewardDist.getAddress(), kwilFirstRewardBlockHash.toString());
-            const reward = {tree: _firstTree.tree, root: _firstTree.tree.root, amount: _firstTree.amount};
-            const postRewardTxResp = await rewardDist.connect(gnosisSafe).postReward(
-                reward.root,
-                reward.amount,);
-            const postRewardTxReceipt = await postRewardTxResp.wait();
-
-            console.log(`Post reward Fee     `, formatEther(postRewardTxReceipt!.fee),
-                ` ether = ${postRewardTxReceipt!.gasUsed} * ${formatUnits(postRewardTxReceipt!.gasPrice, 'gwei')} gwei`);
-
-            // claim reward (threshold doesn't matter, tree structure matters)
-            const recipient = allSignerAddrs[2];
-            const amount = toBigInt(300); // need to be the same as what's in the tree.
-            const {proof, leaf} = getMTreeProof(reward.tree, recipient);
-            const minEthValue = await rewardDist.posterFee();
-            const claimRewardTxResp = await rewardDist.connect(rewardClaimer).claimReward(
-                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue});
-            const claimRewardTxReceipt = await claimRewardTxResp.wait();
-
-            console.log(`Claim reward Fee    `, formatEther(claimRewardTxReceipt!.fee),
-                ` ether = ${claimRewardTxReceipt!.gasUsed} * ${formatUnits(claimRewardTxReceipt!.gasPrice, 'gwei')} gwei`);
-
-            // update poster fee
-            const fee = posterFee2;
-            const updatePosterFeeTxResp = await rewardDist.connect(gnosisSafe).updatePosterFee(fee);
-            const updatePosterFeeTxReceipt = await updatePosterFeeTxResp.wait();
-
-            console.log(`Update posterFee Fee`, formatEther(updatePosterFeeTxReceipt!.fee),
-                ` ether = ${updatePosterFeeTxReceipt!.gasUsed} * ${formatUnits(updatePosterFeeTxReceipt!.gasPrice, 'gwei')} gwei`);
-        }
-
         it("threshold 20", async ()=>{
+            await loadFixture(beforeDeployRewardContractFixture);
+            // console.log("current block number = ", await hre.ethers.provider.getBlockNumber());
+
             await testGasFee(20);
         });
 
         it("threshold 10", async ()=>{
+            await loadFixture(beforeDeployRewardContractFixture);
+            // console.log("current block number = ", await hre.ethers.provider.getBlockNumber());
+
             await testGasFee(10);
         });
 
         it("threshold 5", async ()=>{
+            await loadFixture(beforeDeployRewardContractFixture);
+            // console.log("current block number = ", await hre.ethers.provider.getBlockNumber());
+
             await testGasFee(5);
         });
     })
@@ -474,25 +473,28 @@ describe("RewardDistributor UnitTest", function () {
     //     }
     //   },
     //
-    //     Gas Fee without GnosisSafe
+    //         Gas Fee without GnosisSafe
     // With threshold(also merkle tree leafs) =  20
-    // Deploy contract      0.000946555072012326  ether = 905858 * 1.044926547 gwei
-    // Post reward Fee      0.000078777697850205  ether = 76135 * 1.034710683 gwei
-    // Claim reward Fee     0.000108563328642431  ether = 105361 * 1.030393871 gwei
-    // Update posterFee Fee 0.000054121422958632  ether = 52718 * 1.026621324 gwei
+    // 0xf0964db39931fd46285056828d1fada99d8daf46
+    // Create contract      0.000142783  ether = 142783 * 1.0 gwei
+    // Post reward Fee      0.0000809  ether = 80900 * 1.0 gwei
+    // Claim reward Fee     0.000130528  ether = 130528 * 1.0 gwei
+    // Update posterFee Fee 0.000032681  ether = 32681 * 1.0 gwei
     //       ✔ threshold 20
     // With threshold(also merkle tree leafs) =  10
-    // Deploy contract      0.000926969341363732  ether = 905858 * 1.023305354 gwei
-    // Post reward Fee      0.0000775058822419  ether = 76135 * 1.01800594 gwei
-    // Claim reward Fee     0.000088881610958244  ether = 87502 * 1.015766622 gwei
-    // Update posterFee Fee 0.000053445892819656  ether = 52718 * 1.013807292 gwei
-    //       ✔ threshold 10 (1356ms)
+    // 0xf0964db39931fd46285056828d1fada99d8daf46
+    // Create contract      0.000142783  ether = 142783 * 1.0 gwei
+    // Post reward Fee      0.0000809  ether = 80900 * 1.0 gwei
+    // Claim reward Fee     0.000129775  ether = 129775 * 1.0 gwei
+    // Update posterFee Fee 0.000032681  ether = 32681 * 1.0 gwei
+    //       ✔ threshold 10
     // With threshold(also merkle tree leafs) =  5
-    // Deploy contract      0.000916807510564526  ether = 905858 * 1.012087447 gwei
-    // Post reward Fee      0.000076846015552665  ether = 76135 * 1.009338879 gwei
-    // Claim reward Fee     0.000087442254337185  ether = 86733 * 1.008177445 gwei
-    // Update posterFee Fee 0.00005309552282365  ether = 52718 * 1.007161175 gwei
-    //       ✔ threshold 5 (1105ms)
+    // 0xf0964db39931fd46285056828d1fada99d8daf46
+    // Create contract      0.000142783  ether = 142783 * 1.0 gwei
+    // Post reward Fee      0.0000809  ether = 80900 * 1.0 gwei
+    // Claim reward Fee     0.000129  ether = 129000 * 1.0 gwei
+    // Update posterFee Fee 0.000032681  ether = 32681 * 1.0 gwei
+    //       ✔ threshold 5
     //
 });
 
