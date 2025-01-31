@@ -5,9 +5,18 @@ import { standardLeafHash } from "@openzeppelin/merkle-tree/dist/hashes";
 import {assert} from "chai";
 import {NodeKwil, Utils} from "../../kwil-js/dist"; // TODO: change this
 
-const abiCode = new AbiCoder();
-
 const MerkleLeafEncoding = ["address", "uint256", "address", "bytes32"];
+
+export const PREDETERMINED_SALT_NONCE = keccak256(stringToUtf8Bytes('Kwil Reward Distributor'));
+
+// Utility function to convert a string to UTF-8 bytes
+function stringToUtf8Bytes(input: string): Uint8Array {
+    return new TextEncoder().encode(input);
+}
+
+function getChainSpecificDefaultSaltNonce(chainId: number): string {
+    return keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId.toString()))
+}
 
 // generate a reward merkle tree with each leaf as `(recipient, amount, contract_address, kwil_block_hash)`
 function genRewardMerkleTree(users: string[], amounts: number[], rewardContract: string, kwilBlockHash: string): {tree: StandardMerkleTree<any>, amount: bigint} {
@@ -34,7 +43,7 @@ function getMTreeProof(mtree: StandardMerkleTree<any>, addr: string): {proof: st
 }
 
 function genRewardLeaf(recipient: string, amount: string, thisAddress: string, kwilBlockHash: string) {
-    const encodedLeaf = abiCode.encode(MerkleLeafEncoding, [recipient, amount, thisAddress, kwilBlockHash]);
+    const encodedLeaf = AbiCoder.defaultAbiCoder().encode(MerkleLeafEncoding, [recipient, amount, thisAddress, kwilBlockHash]);
     return getBytes(keccak256(encodedLeaf))
 }
 
@@ -97,22 +106,35 @@ class KwilAPI implements KwilRewardPosterAPI {
         this.ns = ns;
     }
 
-    async ListFinalized(blockHeight: number, limit: number): Promise<KwilFinalizedReward[]> {
+    async ListPending(blockHeight: number, limit: number) {
         const callBody = {
-            dbid: this.ns,
-            name: "list_finalized",
-            inputs: [{a: blockHeight,b: limit}]
+            namespace: this.ns,
+            name: "search_rewards",
+            inputs: [{$param_1: blockHeight, $param_2: limit}]
         }
         // TODO: use stream API?
-        const res        = await this.kwil.call(callBody);
+        const res        = await this.kwil.call(callBody)
+        console.log("res=============", res)
+        console.log("res=============", res.data)
+    }
+
+    async ListFinalized(blockHeight: number, limit: number): Promise<KwilFinalizedReward[]> {
+        const callBody = {
+            namespace: this.ns,
+            name: "list_finalized",
+            inputs: [{$param_1: blockHeight,$param_2: limit}]
+        }
+        // TODO: use stream API?
+        const res        = await this.kwil.call(callBody)
         // Parse the query result into objects
-        const queryResult = res?.data?.query_result;
-        if (!queryResult) {
-            console.error("Invalid query result:", res);
+        // const queryResult = res?.data?.query_result;
+        if (!res.data) {
+            // console.error("Invalid query result:", res);
             return [];
         }
 
-        return this._parseQueryResult<KwilFinalizedReward>(queryResult);
+        // return this._parseQueryResult<KwilFinalizedReward>(queryResult);
+        return res.data.map(row => {return row as KwilFinalizedReward;});
     }
 
     private _parseQueryResult<T>(queryResult: { column_names: string[]; column_types: string[]; values: any[] }): T[] {
@@ -133,39 +155,52 @@ class KwilAPI implements KwilRewardPosterAPI {
 
     async LatestFinalized(limit: number): Promise<KwilFinalizedReward[]> {
         const callBody = {
-            dbid: this.ns,
+            namespace: this.ns,
             name: "latest_finalized",
-            inputs: [{a: limit}]
+            inputs: [{$param_1: limit}]
         }
         // TODO: use stream API?
         const res        = await this.kwil.call(callBody);
         // Parse the query result into objects
-        const queryResult = res?.data?.query_result;
-        if (!queryResult) {
-            console.error("Invalid query result:", res);
+        // const queryResult = res?.data?.query_result;
+        // if (!queryResult) {
+        //     console.error("Invalid query result:", res);
+        //     return [];
+        // }
+        //
+        // return this._parseQueryResult<KwilFinalizedReward>(queryResult);
+
+        if (!res.data) {
+            // console.error("Invalid query result:", res);
             return [];
         }
 
-        return this._parseQueryResult<KwilFinalizedReward>(queryResult);
+        // return this._parseQueryResult<KwilFinalizedReward>(queryResult);
+        return res.data.map(row => {return row as KwilFinalizedReward;});
     }
 
-    async getRewardProof(signHash: string, wallet: string): Promise<string[]> {
-        const callBody = {
-            dbid: this.ns,
-            name: "get_proof",
-            inputs: [{a: signHash}, {b: wallet}]
-        }
-        // TODO: use stream API?
-        const res        = await this.kwil.call(callBody);
-        // Parse the query result into objects
-        const queryResult = res?.data?.query_result;
-        if (!queryResult) {
-            console.error("Invalid query result:", res);
-            return [];
-        }
-
-        return queryResult.values
-    }
+    // async getRewardProof(signHash: string, wallet: string): Promise<string[]> {
+    //     const callBody = {
+    //         dbid: this.ns,
+    //         name: "get_proof",
+    //         inputs: [{a: signHash}, {b: wallet}]
+    //     }
+    //     // TODO: use stream API?
+    //     const res        = await this.kwil.call(callBody);
+    //     // Parse the query result into objects
+    //     // const queryResult = res?.data?.query_result;
+    //     // if (!queryResult) {
+    //     //     console.error("Invalid query result:", res);
+    //     //     return [];
+    //     // }
+    //     //
+    //     // return queryResult.values
+    //
+    //     if (!res.data) {
+    //         // console.error("Invalid query result:", res);
+    //         return [];
+    //     }
+    // }
 }
 
 export {
@@ -174,6 +209,7 @@ export {
     genRewardLeaf,
     genPostRewardTxData,
     genUpdatePosterFeeTxData,
+    getChainSpecificDefaultSaltNonce,
     RewardContractABI,
     // types
     KwilFinalizedReward,
