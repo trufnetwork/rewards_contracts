@@ -27,12 +27,12 @@ contract RewardDistributor is ReentrancyGuard {
     // posterFee is the fee that User will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
     // rewardToken is the address of the ERC20 token used for rewards
-    IERC20 immutable public rewardToken;
+    IERC20 public rewardToken;
     /// @notice Total amount of all rewards that can be claimed.
     /// @dev It can never exceed the total balance of the token owned by the contract.
     uint256 public totalReward;
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
-    address immutable public safe;
+    address public safe;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);

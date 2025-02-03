@@ -10,9 +10,7 @@ async function info(addr: string) {
     const rd = await hre.ethers.getContractAt("RewardDistributor", addr);
 
     console.log(`RewardToken: ${await rd.rewardToken()}`)
-    console.log(`Nonce: ${await rd.nonce()}`);
     console.log(`PosterFee: ${formatUnits(await rd.posterFee(), "ether")} eth`);
-    console.log(`PostedRewards: ${formatUnits(await rd.postedRewards(), "ether")} token`);
 
 }
 
