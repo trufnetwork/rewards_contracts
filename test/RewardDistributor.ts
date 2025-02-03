@@ -48,8 +48,8 @@ describe("RewardDistributor UnitTest", function () {
 
     async function deployRewardContractFixture() {
         const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-        const rewardDist = await RewardDist.connect(networkOwner).deploy(
-            gnosisSafe, posterFee1, rewardToken);
+        const rewardDist = await RewardDist.connect(networkOwner).deploy();
+        await rewardDist.setup(gnosisSafe, posterFee1, rewardToken);
 
         return {rewardDist, posterFee: posterFee1, rewardToken};
     }
@@ -57,22 +57,25 @@ describe("RewardDistributor UnitTest", function () {
     describe("Deployment", function(){
         it("Should revert if invalid safe(empty address)", async function(){
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            const rewardDist = await RewardDist.connect(networkOwner).deploy();
 
-            await expect(RewardDist.connect(networkOwner).deploy(
+            await expect(rewardDist.connect(networkOwner).setup(
                 zeroAddress(), posterFee1, rewardToken)).to.be.revertedWith("ZERO ADDRESS");
         })
 
         it("Should revert if invalid rewardToken(empty address)", async function(){
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            const rewardDist = await RewardDist.connect(networkOwner).deploy();
 
-            await expect(RewardDist.connect(networkOwner).deploy(
+            await expect(rewardDist.connect(networkOwner).setup(
                 gnosisSafe, posterFee1, zeroAddress())).to.be.revertedWith("ZERO ADDRESS");
         })
 
         it("Should revert if posterFee = 0", async function(){
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            const rewardDist = await RewardDist.connect(networkOwner).deploy();
 
-            await expect(RewardDist.connect(networkOwner).deploy(
+            await expect(rewardDist.connect(networkOwner).setup(
                 gnosisSafe, 0, rewardToken)).to.be.revertedWith("PostFee zero");
         })
 
@@ -97,7 +100,7 @@ describe("RewardDistributor UnitTest", function () {
         const {rewardDist} = await loadFixture(deployRewardContractAndFund1000TokenFixture);
 
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
-        const oldPostedRewards = await rewardDist.postedRewards();
+        const oldTotalRewards = await rewardDist.totalReward();
 
         // generate first reward merkle tree
         const _firstTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
@@ -108,7 +111,7 @@ describe("RewardDistributor UnitTest", function () {
             reward.root,
             reward.amount)
 
-        return {rewardDist, reward, txResp, contractOldTokenBalance, oldPostedRewards};
+        return {rewardDist, reward, txResp, contractOldTokenBalance, oldTotalRewards: oldTotalRewards};
     }
 
     // post the very first reward, with total 400 on three users. But the contract has not been funded.
@@ -160,15 +163,13 @@ describe("RewardDistributor UnitTest", function () {
         });
 
         it("Should succeed", async function(){
-            const {rewardDist, reward, txResp, contractOldTokenBalance, oldPostedRewards} = await loadFixture(postFirstRewardFixture);
+            const {rewardDist, reward, txResp, contractOldTokenBalance, oldTotalRewards} = await loadFixture(postFirstRewardFixture);
 
             await expect(txResp.wait())
                 .to.emit(rewardDist, "RewardPosted")
                 .withArgs(reward.root, reward.amount, gnosisSafe);
             expect(await rewardDist.rewardPoster(reward.root)).to.equal(gnosisSafe.address);
-            expect(await rewardDist.postedRewards()).to.equal(reward.amount + oldPostedRewards);
-            expect(await rewardDist.nonce()).to.equal(0);
-            expect(await rewardDist.unpostedRewards()).to.equal(contractOldTokenBalance - reward.amount);
+            expect(await rewardDist.totalReward()).to.equal(reward.amount + oldTotalRewards);
         });
     });
 
@@ -177,7 +178,7 @@ describe("RewardDistributor UnitTest", function () {
 
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(gnosisSafe.address);
-        const oldTotalPostedReward = await rewardDist.postedRewards();
+        const oldTotalReward = await rewardDist.totalReward();
         const recipient = user1.address;
         const recipientOldTokenBalance = await rewardToken.balanceOf(recipient);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
@@ -188,7 +189,7 @@ describe("RewardDistributor UnitTest", function () {
         const txResp = await rewardDist.connect(rewardClaimer).claimReward(
             recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue});
         return {rewardDist, rewardRoot: reward.root, proof, leaf, recipient, rewardClaimer, amount, txResp,
-            paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
+            paid: minEthValue, claimerOldBalance, posterOldBalance, oldTotalReward,
             recipientOldTokenBalance, contractOldTokenBalance};
     }
 
@@ -197,7 +198,7 @@ describe("RewardDistributor UnitTest", function () {
 
         const claimerOldBalance = await hre.ethers.provider.getBalance(rewardClaimer.address);
         const posterOldBalance = await hre.ethers.provider.getBalance(gnosisSafe.address);
-        const oldTotalPostedReward = await rewardDist.postedRewards();
+        const oldTotalReward = await rewardDist.totalReward();
         const recipient = user1.address;
         const recipientOldTokenBalance = await rewardToken.balanceOf(recipient);
         const contractOldTokenBalance = await rewardToken.balanceOf(rewardDist)
@@ -209,7 +210,7 @@ describe("RewardDistributor UnitTest", function () {
             recipient, amount,kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue * toBigInt(2)});
 
         return {rewardDist, rewardRoot: reward.root, leaf, recipient, rewardClaimer, amount, txResp,
-            paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalPostedReward,
+            paid2x: minEthValue*toBigInt(2), claimerOldBalance, posterOldBalance, oldTotalReward,
             recipientOldTokenBalance, contractOldTokenBalance};
     }
 
@@ -238,7 +239,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Invalid proof");
         });
 
         it("Should revert if invalid proof(wrong proof)", async () => {
@@ -249,7 +250,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlockHash, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, [], {value: minEthValue})).to.be.revertedWith("Invalid proof");
         })
 
         it("Should revert if insufficient payment", async () => {
@@ -261,7 +262,7 @@ describe("RewardDistributor UnitTest", function () {
             const minEthValue = await rewardDist.posterFee();
 
             await expect(rewardDist.connect(rewardClaimer).claimReward(
-                user1.address, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue - toBigInt(1000)}))
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue - toBigInt(1000)}))
                 .to.be.revertedWith("Insufficient payment for poster");
         })
 
@@ -269,7 +270,7 @@ describe("RewardDistributor UnitTest", function () {
 
         it("Should succeed", async function(){
             const {rewardDist, rewardRoot, leaf, recipient, rewardClaimer, amount, txResp,
-                paid, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
+                paid, claimerOldBalance, posterOldBalance, oldTotalReward,
                 recipientOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardFixture);
             const txReceipt = await txResp.wait();
             expect(txReceipt).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, amount, rewardClaimer);
@@ -279,15 +280,16 @@ describe("RewardDistributor UnitTest", function () {
                 .to.equal(claimerOldBalance - paid - txReceipt!.fee);
             expect(await hre.ethers.provider.getBalance(gnosisSafe.address))
                 .to.equal(posterOldBalance + paid);
-            expect(await rewardDist.isRewardClaimed(rewardRoot, leaf)).to.equal(true);
-            expect(await rewardDist.postedRewards()).to.equal(oldTotalPostedReward - amount);
+            expect(await rewardDist.isLeafRewardClaimed(rewardRoot, leaf)).to.equal(true);
+            expect(await rewardDist.rewardLeft(rewardRoot)).to.equal(300);
+            expect(await rewardDist.totalReward()).to.equal(oldTotalReward - amount);
             expect(await rewardToken.balanceOf(recipient)).to.equal(recipientOldTokenBalance + amount);
             expect(await rewardToken.balanceOf(rewardDist)).to.equal(contractOldTokenBalance - amount);
         })
 
         it("Should succeed with refund", async function(){
             const {rewardDist, rewardRoot, leaf, recipient, rewardClaimer, amount, txResp,
-                paid2x, claimerOldBalance, posterOldBalance, oldTotalPostedReward,
+                paid2x, claimerOldBalance, posterOldBalance, oldTotalReward,
                 recipientOldTokenBalance, contractOldTokenBalance} = await loadFixture(claimUser1FirstRewardPay2xFixture);
             const txReceipt = await txResp.wait();
 
@@ -297,8 +299,9 @@ describe("RewardDistributor UnitTest", function () {
                 .to.equal(claimerOldBalance - paid2x/toBigInt(2) - txReceipt!.fee);
             expect(await hre.ethers.provider.getBalance(gnosisSafe.address))
                 .to.equal(posterOldBalance + paid2x/toBigInt(2));
-            expect(await rewardDist.isRewardClaimed(rewardRoot, leaf)).to.equal(true);
-            expect(await rewardDist.postedRewards()).to.equal(oldTotalPostedReward - amount);
+            expect(await rewardDist.isLeafRewardClaimed(rewardRoot, leaf)).to.equal(true);
+            expect(await rewardDist.rewardLeft(rewardRoot)).to.equal(300);
+            expect(await rewardDist.totalReward()).to.equal(oldTotalReward - amount);
             expect(await rewardToken.balanceOf(recipient)).to.equal(recipientOldTokenBalance + amount);
             expect(await rewardToken.balanceOf(rewardDist)).to.equal(contractOldTokenBalance - amount);
         })
@@ -307,56 +310,49 @@ describe("RewardDistributor UnitTest", function () {
     async function updatePosterFeeFixture() {
         const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-        const oldNonce = await rewardDist.nonce();
-        const fee = posterFee2;
-        const txResp = await rewardDist.connect(gnosisSafe).updatePosterFee(
-            fee, oldNonce);
-        return {rewardDist, fee, oldNonce, txResp};
+        const oldFee = await rewardDist.posterFee();
+        const newFee = posterFee2;
+        const txResp = await rewardDist.connect(gnosisSafe).updatePosterFee(newFee);
+        return {rewardDist, newFee, oldFee, txResp};
     };
 
     describe("Update poster fee", () => {
         it("Should revert if not from safe wallet", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            await expect(rewardDist.connect(networkOwner).updatePosterFee(0,0)).to.be.revertedWith("Not allowed");
+            await expect(rewardDist.connect(networkOwner).updatePosterFee(0)).to.be.revertedWith("Not allowed");
         });
 
         it("Should revert if fee is 0", async () => {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
 
-            await expect(rewardDist.connect(gnosisSafe).updatePosterFee(0, 0)).to.be.revertedWith("Fee zero");
-        });
-
-        it("Should revert if nonce is not correct(or replay)", async () => {
-            const {rewardDist} = await loadFixture(deployRewardContractFixture);
-
-            await expect(rewardDist.connect(gnosisSafe).updatePosterFee(1,100)).to.be.revertedWith("Nonce does not match");
+            await expect(rewardDist.connect(gnosisSafe).updatePosterFee(0)).to.be.revertedWith("Fee zero");
         });
 
         it("Should succeed", async function(){
-            const {rewardDist, fee, oldNonce, txResp} = await loadFixture(updatePosterFeeFixture);
+            const {rewardDist, newFee, oldFee, txResp} = await loadFixture(updatePosterFeeFixture);
 
-            await expect(txResp.wait()).to.emit(rewardDist, "PosterFeeUpdated").withArgs(fee, oldNonce);
-            expect(await rewardDist.posterFee()).to.equal(fee);
-            expect(await rewardDist.nonce()).to.equal(oldNonce + toBigInt(1));
+            await expect(txResp.wait()).to.emit(rewardDist, "PosterFeeUpdated").withArgs(oldFee, newFee);
+            expect(await rewardDist.posterFee()).to.equal(newFee);
         });
     });
 
     describe("Transfer eth", function (){
+        // wait, why??? I have deleted receive/fallback functions, why it still reverts?
         it("Should revert if transfer eth with msg.data", async function() {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
             await expect(networkOwner.sendTransaction({
                 to: rewardDist,
                 value: parseUnits("1", "ether"),
                 data: "0x00",
-            })).to.revertedWith("Ether transfers not allowed");
+            })).to.be.revertedWithoutReason();
         });
         it("Should revert if transfer eth without msg.data", async function() {
             const {rewardDist} = await loadFixture(deployRewardContractFixture);
             await expect(networkOwner.sendTransaction({
                 to: rewardDist,
                 value: parseUnits("1", "ether"),
-            })).to.revertedWith("Ether transfers not allowed");
+            })).to.be.revertedWithoutReason();
         });
     });
 
@@ -373,8 +369,8 @@ describe("RewardDistributor UnitTest", function () {
 
             // deploy reward contract
             const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
-            const rewardDist = await RewardDist.connect(networkOwner).deploy(
-                gnosisSafe, posterFee1, rewardToken);
+            const rewardDist = await RewardDist.connect(networkOwner).deploy();
+            await rewardDist.setup(gnosisSafe, posterFee1, rewardToken);
             const deployTxReceipt = await rewardDist.deploymentTransaction()!.wait();
             console.log(`Deploy contract     `, formatEther(deployTxReceipt!.fee),
                 ` ether = ${deployTxReceipt!.gasUsed} * ${formatUnits(deployTxReceipt!.gasPrice, 'gwei')} gwei`);
@@ -408,9 +404,8 @@ describe("RewardDistributor UnitTest", function () {
                 ` ether = ${claimRewardTxReceipt!.gasUsed} * ${formatUnits(claimRewardTxReceipt!.gasPrice, 'gwei')} gwei`);
 
             // update poster fee
-            let nonce = await rewardDist.nonce();
             const fee = posterFee2;
-            const updatePosterFeeTxResp = await rewardDist.connect(gnosisSafe).updatePosterFee(fee, nonce);
+            const updatePosterFeeTxResp = await rewardDist.connect(gnosisSafe).updatePosterFee(fee);
             const updatePosterFeeTxReceipt = await updatePosterFeeTxResp.wait();
 
             console.log(`Update posterFee Fee`, formatEther(updatePosterFeeTxReceipt!.fee),

@@ -39,6 +39,7 @@ contract RewardDistributor is ReentrancyGuard {
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
 
     /// @notice Initialize this contracts with parameters.
+    /// @dev This function should be called within the same tx this contract is created; the factory contract will handle this.
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
     /// @param _rewardToken The erc20 reward token address.

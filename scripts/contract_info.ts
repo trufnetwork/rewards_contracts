@@ -11,7 +11,6 @@ async function info(addr: string) {
 
     console.log(`RewardToken: ${await rd.rewardToken()}`)
     console.log(`PosterFee: ${formatUnits(await rd.posterFee(), "ether")} eth`);
-
 }
 
 async function main() {
