@@ -38,10 +38,11 @@ contract RewardDistributor is ReentrancyGuard {
     event RewardClaimed(address recipient, uint256 amount, address claimer);
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
 
+    /// @notice Initialize this contracts with parameters.
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
     /// @param _rewardToken The erc20 reward token address.
-    constructor(address _safe, uint256 _posterFee, address _rewardToken) {
+    function setup(address _safe, uint256 _posterFee, address _rewardToken) external {
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
         require(_posterFee > 0, "PostFee zero");
