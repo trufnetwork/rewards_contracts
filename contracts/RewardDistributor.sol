@@ -3,15 +3,18 @@ pragma solidity ^0.8.20;
 
 //import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title RewardDistributor - Kwil Reward distribution contract.
  */
 contract RewardDistributor is ReentrancyGuard {
+    using SafeERC20 for IERC20; // to support non-standard ERC20 tokens like USDT.
+
     /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network.
@@ -135,7 +138,8 @@ contract RewardDistributor is ReentrancyGuard {
         totalReward -= amount;
         rewardLeft[rewardRoot] -= amount;
 
-        require(rewardToken.transfer(recipient, amount), "Token transfer failed");
+        rewardToken.safeTransfer(recipient, amount);
+
         emit RewardClaimed(recipient, amount, msg.sender);
     }
 
