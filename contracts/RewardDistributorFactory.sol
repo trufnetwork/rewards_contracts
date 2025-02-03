@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
 import "./RewardDistributor.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
+import "hardhat/console.sol";
 
 contract RewardDistributorFactory is Ownable {
     using Clones for address;
@@ -17,16 +17,18 @@ contract RewardDistributorFactory is Ownable {
         imp = _imp;
     }
 
+
+    // function updateImp(address _imp) external onlyOwner {}
+
     function create(
         address _safe,
         uint256 _posterFee,
         address _rewardToken,
-        bytes32 salt
+        bytes32 saltNonce // should be derived from `salt + chainID`, so it's chain specific
     )
     external
-    onlyOwner
     {
-        address instance = imp.cloneDeterministic(salt);
+        address instance = imp.cloneDeterministic(saltNonce);
         IRewardDistributor(instance).setup(_safe, _posterFee, _rewardToken);
 
         console.logAddress(instance);

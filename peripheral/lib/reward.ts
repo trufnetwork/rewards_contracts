@@ -20,6 +20,8 @@ function getChainSpecificDefaultSaltNonce(chainId: number): string {
 
 function getChainSpecificSaltNonce(chainId: string, deployer: string, deployerNonce: string): string {
     return keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId + deployer + deployerNonce))
+
+    // toBigInt(keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId + deployer + deployerNonce)))
 }
 
 // generate a reward merkle tree with each leaf as `(recipient, amount, contract_address, kwil_block_hash)`
