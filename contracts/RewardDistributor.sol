@@ -17,15 +17,17 @@ contract RewardDistributor is ReentrancyGuard {
     /// ensures a unique reward hash per contract in a Kwil network.
     /// @dev To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
+    /// @notice Mapping to keep track of the amount left to be claimed of a reward.
+    mapping(bytes32 => uint256) public rewardLeft;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
     // posterFee is the fee that User will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
     // rewardToken is the address of the ERC20 token used for rewards
     IERC20 immutable public rewardToken;
-    // postedRewards is the total amount of rewards posted to the contract.
-    // It can never exceed the total balance of the token owned by the contract.
-    uint256 public postedRewards;
+    /// @notice Total amount of all rewards that can be claimed.
+    /// @dev It can never exceed the total balance of the token owned by the contract.
+    uint256 public totalReward;
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
     address public safe;
 
@@ -46,22 +48,23 @@ contract RewardDistributor is ReentrancyGuard {
         safe = _safe;
     }
 
-    /// @dev No tx replay issue since the sender need to be a GnosisSafe wallet.
+    /// @dev No tx replay issue since the sender needs to be a GnosisSafe wallet.
     /// @param root The merkle tree root of an epoch reward.
     /// @param amount The total value of this reward.
     function postReward(bytes32 root, uint256 amount) external {
         require(msg.sender == safe, "Not allowed");
         require(amount > 0, "Total amount zero");
         require(rewardPoster[root] == address(0), "Already posted");
-        require(rewardToken.balanceOf(address(this)) >= postedRewards + amount, "Insufficient contract reward balance");
+        require(rewardToken.balanceOf(address(this)) >= totalReward + amount, "Insufficient contract reward balance");
 
-        rewardPoster[root] = tx.origin; // whoever initiate this TX through gnosis-safe
-        postedRewards += amount;
+        rewardPoster[root] = tx.origin; // whoever initiates this TX through gnosis-safe
+        totalReward += amount;
+        rewardLeft[root] = amount;
 
         emit RewardPosted(root, amount, msg.sender);
     }
 
-    /// @dev No tx replay issue since the sender need to be a GnosisSafe wallet.
+    /// @dev No tx replay issue since the sender needs to be a GnosisSafe wallet.
     /// @param newFee The new poster fee to be set.
     function updatePosterFee(uint256 newFee) external {
         require(msg.sender == safe, "Not allowed");
@@ -99,6 +102,8 @@ contract RewardDistributor is ReentrancyGuard {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
+        require(rewardLeft[rewardRoot] >= amount, "Not enough reward left");
+
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this), kwilBlockHash))));
         require(!isRewardClaimed[rewardRoot][leaf], "Reward already claimed");
 
@@ -124,15 +129,11 @@ contract RewardDistributor is ReentrancyGuard {
 
         // claim the reward
         isRewardClaimed[rewardRoot][leaf] = true;
-        postedRewards -= amount;
+        totalReward -= amount;
+        rewardLeft[rewardRoot] -= amount;
 
         require(rewardToken.transfer(recipient, amount), "Token transfer failed");
         emit RewardClaimed(recipient, amount, msg.sender);
-    }
-
-    /// @return The amount of rewards that are owned by contract, yet been posted.
-    function unpostedRewards() public view returns (uint256) {
-        return rewardToken.balanceOf(address(this)) - postedRewards;
     }
 
     // Fallback function to prevent accidental Ether transfers
