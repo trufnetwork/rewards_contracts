@@ -53,7 +53,6 @@ contract RewardDistributor is ReentrancyGuard {
         safe = _safe;
     }
 
-    /// @dev No tx replay issue since the sender needs to be a GnosisSafe wallet.
     /// @param root The merkle tree root of an epoch reward.
     /// @param amount The total value of this reward.
     function postReward(bytes32 root, uint256 amount) external {
@@ -70,7 +69,6 @@ contract RewardDistributor is ReentrancyGuard {
         emit RewardPosted(root, amount, tx.origin);
     }
 
-    /// @dev No tx replay issue since the sender needs to be a GnosisSafe wallet.
     /// @param newFee The new poster fee to be set.
     function updatePosterFee(uint256 newFee) external {
         require(msg.sender == safe, "Not allowed");
