@@ -57,11 +57,12 @@ contract RewardDistributor is ReentrancyGuard {
         require(rewardPoster[root] == address(0), "Already posted");
         require(rewardToken.balanceOf(address(this)) >= totalReward + amount, "Insufficient contract reward balance");
 
-        rewardPoster[root] = tx.origin; // whoever initiates this TX through gnosis-safe
+        // We use the wallet that initiates this TX through gnosis-safe, so the wallet will get compensated.
+        rewardPoster[root] = tx.origin;
         totalReward += amount;
         rewardLeft[root] = amount;
 
-        emit RewardPosted(root, amount, msg.sender);
+        emit RewardPosted(root, amount, tx.origin);
     }
 
     /// @dev No tx replay issue since the sender needs to be a GnosisSafe wallet.
