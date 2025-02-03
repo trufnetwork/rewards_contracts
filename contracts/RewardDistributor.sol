@@ -15,8 +15,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network.
-    /// @dev Since root(reward hash) is unique, it's used to prevent TX replay as well.
-    /// To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
+    /// @dev To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
     // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
     mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
@@ -29,12 +28,10 @@ contract RewardDistributor is ReentrancyGuard {
     uint256 public postedRewards;
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
     address public safe;
-    // nonce is used to prevent off-chain tx replay, used by updatePosterFee.
-    uint256 public nonce;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
-    event PosterFeeUpdated(uint256 newFee, uint256 nonce);
+    event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
 
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
@@ -49,8 +46,7 @@ contract RewardDistributor is ReentrancyGuard {
         safe = _safe;
     }
 
-    /// @dev Since root is unique, it can also prevent tx replay.
-    /// @dev We can also use 'nonce', but seems not necessary since rewardRoot is unique.
+    /// @dev No tx replay issue since the sender need to be a GnosisSafe wallet.
     /// @param root The merkle tree root of an epoch reward.
     /// @param amount The total value of this reward.
     function postReward(bytes32 root, uint256 amount) external {
@@ -65,17 +61,16 @@ contract RewardDistributor is ReentrancyGuard {
         emit RewardPosted(root, amount, msg.sender);
     }
 
+    /// @dev No tx replay issue since the sender need to be a GnosisSafe wallet.
     /// @param newFee The new poster fee to be set.
-    /// @param _nonce The nonce to modify the posterFee. This prevents tx replay.
-    function updatePosterFee(uint256 newFee, uint256 _nonce) external {
+    function updatePosterFee(uint256 newFee) external {
         require(msg.sender == safe, "Not allowed");
         require(newFee > 0, "Fee zero");
-        require(nonce == _nonce, "Nonce does not match");
 
+        uint256 oldFee = posterFee;
         posterFee = newFee;
-        nonce += 1;
 
-        emit PosterFeeUpdated(newFee, nonce-1);
+        emit PosterFeeUpdated(oldFee,newFee);
     }
 
     /// @notice This allows a user on behalf of the recipient to claim reward by providing
