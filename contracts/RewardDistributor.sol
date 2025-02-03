@@ -15,15 +15,15 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 contract RewardDistributor is ReentrancyGuard {
     using SafeERC20 for IERC20; // to support non-standard ERC20 tokens like USDT.
 
-    /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
+    /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network.
     /// @dev To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
     /// @notice Mapping to keep track of the amount left to be claimed of a reward.
     mapping(bytes32 => uint256) public rewardLeft;
-    // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
-    mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
+    // Mapping to keep track of if a leaf reward is claimed. The structure is: treeRoot => leaf => bool.
+    mapping(bytes32 => mapping(bytes32 => bool)) public isLeafRewardClaimed;
     // posterFee is the fee that User will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
     // rewardToken is the address of the ERC20 token used for rewards
@@ -110,7 +110,7 @@ contract RewardDistributor is ReentrancyGuard {
         require(rewardLeft[rewardRoot] >= amount, "Not enough reward left");
 
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this), kwilBlockHash))));
-        require(!isRewardClaimed[rewardRoot][leaf], "Reward already claimed");
+        require(!isLeafRewardClaimed[rewardRoot][leaf], "Reward already claimed");
 
         // verify the Merkle proof
         require(MerkleProof.verify(proofs, rewardRoot, leaf), "Invalid proof");
@@ -135,22 +135,12 @@ contract RewardDistributor is ReentrancyGuard {
         }
 
         // claim the reward
-        isRewardClaimed[rewardRoot][leaf] = true;
+        isLeafRewardClaimed[rewardRoot][leaf] = true;
         totalReward -= amount;
         rewardLeft[rewardRoot] -= amount;
 
         rewardToken.safeTransfer(recipient, amount);
 
         emit RewardClaimed(recipient, amount, msg.sender);
-    }
-
-    // Fallback function to prevent accidental Ether transfers
-    receive() external payable {
-        revert("Ether transfers not allowed");
-    }
-
-    // Fallback function to prevent accidental Ether transfers
-    fallback() external payable {
-        revert("Ether transfers not allowed");
     }
 }
