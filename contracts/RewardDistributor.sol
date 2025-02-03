@@ -29,7 +29,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev It can never exceed the total balance of the token owned by the contract.
     uint256 public totalReward;
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
-    address public safe;
+    address immutable public safe;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
@@ -111,14 +111,16 @@ contract RewardDistributor is ReentrancyGuard {
         // verify the Merkle proof
         require(MerkleProof.verify(proofs, rewardRoot, leaf), "Invalid proof");
 
+        uint256 feeToPoster = posterFee; // to optimize gas cost;
+
         // Optimized payment and refund logic in claimReward
-        require(msg.value >= posterFee, "Insufficient payment for poster");
+        require(msg.value >= feeToPoster, "Insufficient payment for poster");
 
         // Calculate any excess ETH to refund to the sender
-        uint256 excess = msg.value - posterFee;
+        uint256 excess = msg.value - feeToPoster;
 
         // Use call to transfer ETH to the poster (recommended for flexibility with gas limits)
-        (bool success, ) = poster.call{value: posterFee}("");
+        (bool success, ) = poster.call{value: feeToPoster}("");
 
         require(success, "Poster reward transfer failed");
 
