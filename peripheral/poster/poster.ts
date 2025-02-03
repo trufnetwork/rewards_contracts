@@ -191,6 +191,8 @@ class EVMPoster {
         const proposer = rd.request.signers[0]
         const proposerSignature = rd.request.signatures[0]
 
+        // TODO: check if the contract has enough token, i.e. `token.balanceOf(rd.ContractAddress) >= rd.request.amount`
+
         // NOTE: maybe Kwil API can also return the safeTxHash associated with Reward? seems not necessary
         // propose GnosisSafe tx
         const safeTxHash = await this.safe.proposeRewardWithSignature(rd.request.root, rd.request.amount,
