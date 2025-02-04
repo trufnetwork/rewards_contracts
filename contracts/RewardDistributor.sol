@@ -39,8 +39,8 @@ contract RewardDistributor is ReentrancyGuard {
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
 
     /// @notice Initialize this contracts with parameters.
-    /// @dev This function should be called within the same tx this contract is created;
-    /// @dev The factory contract will use Openzeppelin(https://github.com/OpenZeppelin/openzeppelin-contracts/blob/441dc141ac99622de7e535fa75dfc74af939019c/contracts/proxy/Clones.sol) clone to create new contract.
+    /// @dev This function should be called within the same tx this contract is created.
+    /// @dev The factory contract uses Openzeppelin cloneDeterministic(https://github.com/OpenZeppelin/openzeppelin-contracts/blob/441dc141ac99622de7e535fa75dfc74af939019c/contracts/proxy/Clones.sol#L74) to create new contract.
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
     /// @param _rewardToken The erc20 reward token address.
