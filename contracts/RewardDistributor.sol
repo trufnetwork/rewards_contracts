@@ -106,6 +106,7 @@ contract RewardDistributor is ReentrancyGuard {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
+        require(totalReward >= amount, "Not enough reward");
         require(rewardLeft[rewardRoot] >= amount, "Not enough reward left");
 
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this), kwilBlockHash))));
@@ -114,13 +115,16 @@ contract RewardDistributor is ReentrancyGuard {
         // verify the Merkle proof
         require(MerkleProof.verify(proofs, rewardRoot, leaf), "Invalid proof");
 
-        uint256 feeToPoster = posterFee; // to optimize gas cost;
-
+        uint256 feeToPoster = posterFee; // save gas cost;
         // Optimized payment and refund logic in claimReward
         require(msg.value >= feeToPoster, "Insufficient payment for poster");
 
         // Calculate any excess ETH to refund to the sender
-        uint256 excess = msg.value - feeToPoster;
+        uint256 excess;
+        unchecked {
+            // above checks ensure this is safe; save gas
+            excess = msg.value - feeToPoster;
+        }
 
         // Use call to transfer ETH to the poster (recommended for flexibility with gas limits)
         (bool success, ) = poster.call{value: feeToPoster}("");
@@ -133,13 +137,15 @@ contract RewardDistributor is ReentrancyGuard {
             require(refundSuccess, "Refund failed");
         }
 
-        // claim the reward
+        // Update claim, transfer the reward to recipient
         isLeafRewardClaimed[rewardRoot][leaf] = true;
-        totalReward -= amount;
-        rewardLeft[rewardRoot] -= amount;
+        unchecked {
+            // above checks ensure this is safe; save gas
+            totalReward -= amount;
+            rewardLeft[rewardRoot] -= amount;
+        }
 
         rewardToken.safeTransfer(recipient, amount);
-
         emit RewardClaimed(recipient, amount, msg.sender);
     }
 }
