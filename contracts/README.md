@@ -34,7 +34,7 @@ The Safe wallet acts as the administrator to:
 Rewards are posted using a Merkle root, which represents the entire set of eligible reward recipients and their amounts. The poster of the reward root is paid a small fee by claimants when they claim their rewards.
 
 - **Reward Roots**: A mapping of posted reward roots to the addresses that submitted them.
-- **Poster Reward**: A fee (in gwei) paid to the poster of a reward root by claimants when they claim their reward.
+- **Poster Reward**: A fee (in wei) paid to the poster of a reward root by claimants when they claim their reward.
 
 > A reward in this contract is the aggregation of multiple rewards in a Kwil epoch (the discreet period in which rewards are accumulated);
 > a merkle tree is generated from those rewards, and it's referenced by the merkle tree root. In contract, we store the root of the tree.

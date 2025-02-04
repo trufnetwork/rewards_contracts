@@ -3,43 +3,47 @@ pragma solidity ^0.8.20;
 
 //import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title RewardDistributor - Kwil Reward distribution contract.
  */
 contract RewardDistributor is ReentrancyGuard {
-    /// @notice rewardPoster maps a reward hash(merkle tree root) to the wallet that posts the reward on chain.
+    using SafeERC20 for IERC20; // to support non-standard ERC20 tokens like USDT.
+
+    /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network.
-    /// @dev Since root(reward hash) is unique, it's used to prevent TX replay as well.
-    /// To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
+    /// @dev To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
-    // isRewardClaimed maps a reward hash (merkle tree root) to the leaf hash of the Merkle tree to whether it has been claimed
-    mapping(bytes32 => mapping(bytes32 => bool)) public isRewardClaimed;
+    /// @notice Mapping to keep track of the amount left to be claimed of a reward.
+    mapping(bytes32 => uint256) public rewardLeft;
+    // Mapping to keep track of if a leaf reward is claimed. The structure is: treeRoot => leaf => bool.
+    mapping(bytes32 => mapping(bytes32 => bool)) public isLeafRewardClaimed;
     // posterFee is the fee that User will pay to the 'rewardPoster' on each claim
     uint256 public posterFee;
     // rewardToken is the address of the ERC20 token used for rewards
-    IERC20 immutable public rewardToken;
-    // postedRewards is the total amount of rewards posted to the contract.
-    // It can never exceed the total balance of the token owned by the contract.
-    uint256 public postedRewards;
+    IERC20 public rewardToken;
+    /// @notice Total amount of all rewards that can be claimed.
+    /// @dev It can never exceed the total balance of the token owned by the contract.
+    uint256 public totalReward;
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
     address public safe;
-    // nonce is used to prevent off-chain tx replay, used by updatePosterFee.
-    uint256 public nonce;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
-    event PosterFeeUpdated(uint256 newFee, uint256 nonce);
+    event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
 
+    /// @notice Initialize this contracts with parameters.
+    /// @dev This function should be called within the same tx this contract is created; the factory contract will handle this.
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
     /// @param _rewardToken The erc20 reward token address.
-    constructor(address _safe, uint256 _posterFee, address _rewardToken) {
+    function setup(address _safe, uint256 _posterFee, address _rewardToken) external {
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
         require(_posterFee > 0, "PostFee zero");
@@ -49,33 +53,31 @@ contract RewardDistributor is ReentrancyGuard {
         safe = _safe;
     }
 
-    /// @dev Since root is unique, it can also prevent tx replay.
-    /// @dev We can also use 'nonce', but seems not necessary since rewardRoot is unique.
     /// @param root The merkle tree root of an epoch reward.
     /// @param amount The total value of this reward.
     function postReward(bytes32 root, uint256 amount) external {
         require(msg.sender == safe, "Not allowed");
         require(amount > 0, "Total amount zero");
         require(rewardPoster[root] == address(0), "Already posted");
-        require(rewardToken.balanceOf(address(this)) >= postedRewards + amount, "Insufficient contract reward balance");
+        require(rewardToken.balanceOf(address(this)) >= totalReward + amount, "Insufficient contract reward balance");
 
-        rewardPoster[root] = tx.origin; // whoever initiate this TX through gnosis-safe
-        postedRewards += amount;
+        // We use the wallet that initiates this TX through gnosis-safe, so the wallet will get compensated.
+        rewardPoster[root] = tx.origin;
+        totalReward += amount;
+        rewardLeft[root] = amount;
 
-        emit RewardPosted(root, amount, msg.sender);
+        emit RewardPosted(root, amount, tx.origin);
     }
 
     /// @param newFee The new poster fee to be set.
-    /// @param _nonce The nonce to modify the posterFee. This prevents tx replay.
-    function updatePosterFee(uint256 newFee, uint256 _nonce) external {
+    function updatePosterFee(uint256 newFee) external {
         require(msg.sender == safe, "Not allowed");
         require(newFee > 0, "Fee zero");
-        require(nonce == _nonce, "Nonce does not match");
 
+        uint256 oldFee = posterFee;
         posterFee = newFee;
-        nonce += 1;
 
-        emit PosterFeeUpdated(newFee, nonce-1);
+        emit PosterFeeUpdated(oldFee,newFee);
     }
 
     /// @notice This allows a user on behalf of the recipient to claim reward by providing
@@ -104,20 +106,28 @@ contract RewardDistributor is ReentrancyGuard {
         address payable poster = payable(rewardPoster[rewardRoot]);
         require(poster != address(0), "Reward root not posted");
 
+        require(totalReward >= amount, "Not enough reward");
+        require(rewardLeft[rewardRoot] >= amount, "Not enough reward left");
+
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount, address(this), kwilBlockHash))));
-        require(!isRewardClaimed[rewardRoot][leaf], "Reward already claimed");
+        require(!isLeafRewardClaimed[rewardRoot][leaf], "Reward already claimed");
 
         // verify the Merkle proof
         require(MerkleProof.verify(proofs, rewardRoot, leaf), "Invalid proof");
 
+        uint256 feeToPoster = posterFee; // save gas cost;
         // Optimized payment and refund logic in claimReward
-        require(msg.value >= posterFee, "Insufficient payment for poster");
+        require(msg.value >= feeToPoster, "Insufficient payment for poster");
 
         // Calculate any excess ETH to refund to the sender
-        uint256 excess = msg.value - posterFee;
+        uint256 excess;
+        unchecked {
+            // above checks ensure this is safe; save gas
+            excess = msg.value - feeToPoster;
+        }
 
         // Use call to transfer ETH to the poster (recommended for flexibility with gas limits)
-        (bool success, ) = poster.call{value: posterFee}("");
+        (bool success, ) = poster.call{value: feeToPoster}("");
 
         require(success, "Poster reward transfer failed");
 
@@ -127,26 +137,15 @@ contract RewardDistributor is ReentrancyGuard {
             require(refundSuccess, "Refund failed");
         }
 
-        // claim the reward
-        isRewardClaimed[rewardRoot][leaf] = true;
-        postedRewards -= amount;
+        // Update claim, transfer the reward to recipient
+        isLeafRewardClaimed[rewardRoot][leaf] = true;
+        unchecked {
+            // above checks ensure this is safe; save gas
+            totalReward -= amount;
+            rewardLeft[rewardRoot] -= amount;
+        }
 
-        require(rewardToken.transfer(recipient, amount), "Token transfer failed");
+        rewardToken.safeTransfer(recipient, amount);
         emit RewardClaimed(recipient, amount, msg.sender);
-    }
-
-    /// @return The amount of rewards that are owned by contract, yet been posted.
-    function unpostedRewards() public view returns (uint256) {
-        return rewardToken.balanceOf(address(this)) - postedRewards;
-    }
-
-    // Fallback function to prevent accidental Ether transfers
-    receive() external payable {
-        revert("Ether transfers not allowed");
-    }
-
-    // Fallback function to prevent accidental Ether transfers
-    fallback() external payable {
-        revert("Ether transfers not allowed");
     }
 }
