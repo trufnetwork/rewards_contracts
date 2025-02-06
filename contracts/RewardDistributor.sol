@@ -24,27 +24,33 @@ contract RewardDistributor is ReentrancyGuard {
     mapping(bytes32 => uint256) public rewardLeft;
     // Mapping to keep track of if a leaf reward is claimed. The structure is: treeRoot => leaf => bool.
     mapping(bytes32 => mapping(bytes32 => bool)) public isLeafRewardClaimed;
-    // posterFee is the fee that User will pay to the 'rewardPoster' on each claim
-    uint256 public posterFee;
-    // rewardToken is the address of the ERC20 token used for rewards
-    IERC20 public rewardToken;
     /// @notice Total amount of all rewards that can be claimed.
     /// @dev It can never exceed the total balance of the token owned by the contract.
     uint256 public totalReward;
+
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
+    // Cannot be changed once set.
     address public safe;
+    // posterFee is the fee that User will pay to the 'reward poster' on each claim.
+    uint256 public posterFee;
+    // rewardToken is the address of the ERC20 token used for rewards.
+    // Cannot be changed once set.
+    IERC20 public rewardToken;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
 
-    /// @notice Initialize this contracts with parameters.
+    /// @notice Initialize the contract with given parameters.
     /// @dev This function should be called within the same tx this contract is created.
     /// @dev The factory contract uses Openzeppelin cloneDeterministic(https://github.com/OpenZeppelin/openzeppelin-contracts/blob/441dc141ac99622de7e535fa75dfc74af939019c/contracts/proxy/Clones.sol#L74) to create new contract.
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
     /// @param _rewardToken The erc20 reward token address.
     function setup(address _safe, uint256 _posterFee, address _rewardToken) external {
+        // ensure `setup` can only be called once
+        require(safe == address(0), "Already initialized");
+        // valid parameters
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
         require(_posterFee > 0, "PostFee zero");

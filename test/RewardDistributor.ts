@@ -79,6 +79,16 @@ describe("RewardDistributor UnitTest", function () {
                 gnosisSafe, 0, rewardToken)).to.be.revertedWith("PostFee zero");
         })
 
+        it("Should revert if setup twice", async function(){
+            // deploy & setup
+            const {rewardDist, posterFee, rewardToken} = await loadFixture(deployRewardContractFixture);
+
+
+            // try to call `setup` again
+            await expect(rewardDist.connect(networkOwner).setup(
+                gnosisSafe, posterFee1, rewardToken)).to.be.revertedWith("Already initialized");
+        })
+
         it("Should init correctly", async function(){
             const {rewardDist, posterFee, rewardToken} = await loadFixture(deployRewardContractFixture);
 
