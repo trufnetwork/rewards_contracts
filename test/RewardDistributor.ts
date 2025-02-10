@@ -248,6 +248,36 @@ describe("RewardDistributor UnitTest", function () {
                 user1.address, 100, kwilFirstRewardBlockHash, emptyRewardRoot, [], {value: 10})).to.be.revertedWith("Reward root not posted");
         });
 
+        it("Should revert if total reward is not enough", async function(){
+            const {rewardDist, reward} = await loadFixture(postFirstRewardFixture);
+
+            const recipient = user1.address;
+            const amount = toBigInt(500); // exceed total reward
+            const {proof, leaf} = getMTreeProof(reward.tree, recipient);
+            const minEthValue = await rewardDist.posterFee();
+
+            await expect(rewardDist.connect(rewardClaimer).claimReward(
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Not enough reward");
+        });
+
+        it("Should revert if left reward is not enough", async function(){
+            const {rewardDist, reward} = await loadFixture(postFirstRewardFixture);
+
+            // post a second reward
+            const _secondTree = genRewardMerkleTree([user1.address, user2.address, user3.address],
+                [200,100,200], await rewardDist.getAddress(), kwilFirstRewardBlockHash.toString());
+            const reward2 = {tree: _secondTree.tree, root: _secondTree.tree.root, amount: _secondTree.amount, user1Amount: 100};
+            await rewardDist.connect(gnosisSafe).postReward(reward2.root, reward2.amount)
+
+            const recipient = user1.address;
+            const amount = toBigInt(500); // exceed user1's reward, but not exceed total reward
+            const {proof, leaf} = getMTreeProof(reward.tree, recipient);
+            const minEthValue = await rewardDist.posterFee();
+
+            await expect(rewardDist.connect(rewardClaimer).claimReward(
+                recipient, amount, kwilFirstRewardBlockHash, reward.root, proof, {value: minEthValue})).to.be.revertedWith("Not enough reward left");
+        });
+
         it("Should revert if reward already claimed", async function(){
             const {rewardDist, rewardRoot, proof, txResp, recipient, amount, paid} = await loadFixture(claimUser1FirstRewardFixture);
             await expect(txResp.wait()).to.emit(rewardDist, "RewardClaimed").withArgs(recipient, amount, rewardClaimer);
@@ -255,6 +285,7 @@ describe("RewardDistributor UnitTest", function () {
             await expect(rewardDist.connect(rewardClaimer).claimReward(
                 recipient, amount, kwilFirstRewardBlockHash, rewardRoot, proof, {value: paid})).to.be.revertedWith("Reward already claimed");
         });
+
 
         it("Should revert if invalid proof(wrong leaf)", async () => {
             const {rewardDist, reward} = await loadFixture(postFirstRewardFixture);
