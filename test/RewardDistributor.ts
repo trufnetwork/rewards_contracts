@@ -76,7 +76,23 @@ describe("RewardDistributor UnitTest", function () {
             const rewardDist = await RewardDist.connect(networkOwner).deploy();
 
             await expect(rewardDist.connect(networkOwner).setup(
-                gnosisSafe, 0, rewardToken)).to.be.revertedWith("PostFee zero");
+                gnosisSafe, 0, rewardToken)).to.be.revertedWith("Fee zero");
+        })
+
+        it("Should revert if posterFee = 0.01 eth", async function(){
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            const rewardDist = await RewardDist.connect(networkOwner).deploy();
+
+            await expect(rewardDist.connect(networkOwner).setup(
+                gnosisSafe, parseUnits("0.01", "ether"), rewardToken)).to.be.revertedWith("Fee too high");
+        })
+
+        it("Should revert if posterFee > 0.01 eth", async function(){
+            const RewardDist = await hre.ethers.getContractFactory("RewardDistributor");
+            const rewardDist = await RewardDist.connect(networkOwner).deploy();
+
+            await expect(rewardDist.connect(networkOwner).setup(
+                gnosisSafe, parseUnits("0.011", "ether"), rewardToken)).to.be.revertedWith("Fee too high");
         })
 
         it("Should revert if setup twice", async function(){
@@ -338,6 +354,18 @@ describe("RewardDistributor UnitTest", function () {
 
             await expect(rewardDist.connect(gnosisSafe).updatePosterFee(0)).to.be.revertedWith("Fee zero");
         });
+
+        it("Should revert if posterFee = 0.01 eth", async function(){
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
+
+            await expect(rewardDist.connect(gnosisSafe).updatePosterFee(parseUnits("0.01", "ether"))).to.be.revertedWith("Fee too high");
+        })
+
+        it("Should revert if posterFee > 0.01 eth", async function(){
+            const {rewardDist} = await loadFixture(deployRewardContractFixture);
+
+            await expect(rewardDist.connect(gnosisSafe).updatePosterFee(parseUnits("0.011", "ether"))).to.be.revertedWith("Fee too high");
+        })
 
         it("Should succeed", async function(){
             const {rewardDist, newFee, oldFee, txResp} = await loadFixture(updatePosterFeeFixture);

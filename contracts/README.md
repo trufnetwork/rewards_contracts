@@ -4,11 +4,18 @@
 
 The `RewardDistributor` is a smart contract designed to securely distribute ERC20 token rewards to eligible recipients. The contract utilizes a Merkle tree for efficient verification of reward claims and requires a [Safe Wallet](https://safe.global/wallet) for posting rewards, updating the fees, and managing signers.
 
+`RewardDistributor` is implemented as a [minimal proxy contract](https://eips.ethereum.org/EIPS/eip-1167), and will be created/deployed through a factory using OpenZeppelin [cloneDeterministic](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/441dc141ac99622de7e535fa75dfc74af939019c/contracts/proxy/Clones.sol#L74).
+
 ### Key Features
 
 - **Reward Distribution via Merkle Trees**: This allows multiple recipients to claim rewards based on their inclusion in a Merkle tree.
 - **Multisig Signer Approval**: Distributing rewards requires multisign from Safe wallet.
 - **Poster Fee Mechanism**: A small fee is paid by claimants to the individual who posts the reward root (the `PosterService`) to offset the gas fees spent distributing rewards.
+
+### Limitations
+
+- [Rebasing ERC20 token](https://cointelegraph.com/explained/what-are-rebase-tokens-and-how-do-they-work) cannot be used as the reward token
+- Safe cannot operate in ERC4337 compatible mode
 
 ## Different roles involved
 

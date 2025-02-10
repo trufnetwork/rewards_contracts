@@ -13,7 +13,12 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
  * @title RewardDistributor - Kwil Reward distribution contract.
  */
 contract RewardDistributor is ReentrancyGuard {
-    using SafeERC20 for IERC20; // to support non-standard ERC20 tokens like USDT.
+    /// @dev Use SafeERC20 to support non-standard ERC20 tokens like USDT.
+    using SafeERC20 for IERC20;
+
+    /// @notice Hardcoded limit for posterFee.
+    /// @dev 0.01 Ether is unreasonably high enough.
+    uint256 public constant maxPosterFee = 1e16; // 0.01 Ether
 
     /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
@@ -22,19 +27,21 @@ contract RewardDistributor is ReentrancyGuard {
     mapping(bytes32 => address) public rewardPoster;
     /// @notice Mapping to keep track of the amount left to be claimed of a reward.
     mapping(bytes32 => uint256) public rewardLeft;
-    // Mapping to keep track of if a leaf reward is claimed. The structure is: treeRoot => leaf => bool.
+    /// @notice Mapping to keep track of if a leaf reward is claimed. The structure is: treeRoot => leaf => bool.
     mapping(bytes32 => mapping(bytes32 => bool)) public isLeafRewardClaimed;
     /// @notice Total amount of all rewards that can be claimed.
     /// @dev It can never exceed the total balance of the token owned by the contract.
     uint256 public totalReward;
 
-    // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
-    // Cannot be changed once set.
+    /// @notice The GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee. Cannot be changed once set.
+    /// @dev The Safe wallet cannot work in ERC4337 compatible mode, as the tx.origin will always be the bundler.
     address public safe;
-    // posterFee is the fee that User will pay to the 'reward poster' on each claim.
+    /// @notice The fee that User will pay to the 'reward poster' per claim.
+    /// @dev If a reward has 100 recipients, the total compensation the `reward poster`
+    /// will get for posting this reward is 100 * posterFee.
     uint256 public posterFee;
-    // rewardToken is the address of the ERC20 token used for rewards.
-    // Cannot be changed once set.
+    /// @notice The address of the ERC20 token used for rewards. Cannot be changed once set.
+    /// @dev Rebasing token cannot be used as reward token.
     IERC20 public rewardToken;
 
     event RewardPosted(bytes32 root, uint256 amount, address poster);
@@ -53,7 +60,8 @@ contract RewardDistributor is ReentrancyGuard {
         // valid parameters
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
-        require(_posterFee > 0, "PostFee zero");
+        require(_posterFee > 0, "Fee zero");
+        require(_posterFee < maxPosterFee, "Fee too high");
 
         posterFee = _posterFee;
         rewardToken = IERC20(_rewardToken);
@@ -80,6 +88,7 @@ contract RewardDistributor is ReentrancyGuard {
     function updatePosterFee(uint256 newFee) external {
         require(msg.sender == safe, "Not allowed");
         require(newFee > 0, "Fee zero");
+        require(newFee < maxPosterFee, "Fee too high");
 
         uint256 oldFee = posterFee;
         posterFee = newFee;
@@ -88,10 +97,12 @@ contract RewardDistributor is ReentrancyGuard {
     }
 
     /// @notice This allows a user on behalf of the recipient to claim reward by providing
-    /// the leaf data and corresponding Merkle proofs. The reward must exist and not already be claimed.
+    /// the leaf data and corresponding Merkle proofs. The reward must exist and not claimed.
+    /// User calling this function will pay a fee(in eth) to whoever post this reward on chain.
     /// @dev This is the only method transferring reward token out of this contract.
-    /// @dev On success, the recipient will receive some reward tokens. If the caller
-    /// is not the recipient, there is no reimbursement for the caller; if needed, it's settled off-chain.
+    /// @dev On success, the recipient will receive 'amount' reward tokens. If the caller
+    /// is not the recipient, there is no reimbursement for the caller; if needed,
+    /// it'll be settled off-chain.
     /// @dev Since we need to know the amount of token to transfer to the recipient,
     /// we have to regenerate and verify the leaf in the contract to ensure the authenticity.
     /// @param recipient The wallet address the reward will be send to.
