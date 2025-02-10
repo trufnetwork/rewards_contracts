@@ -14,7 +14,7 @@ The `RewardDistributor` is a smart contract designed to securely distribute ERC2
 
 ### Limitations
 
-- Rebasing ERC20 token cannot be used as the reward token
+- [Rebasing ERC20 token](https://cointelegraph.com/explained/what-are-rebase-tokens-and-how-do-they-work) cannot be used as the reward token
 - Safe cannot operate in ERC4337 compatible mode
 
 ## Different roles involved
