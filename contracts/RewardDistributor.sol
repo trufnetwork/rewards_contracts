@@ -36,7 +36,7 @@ contract RewardDistributor is ReentrancyGuard {
     /// @notice The GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee. Cannot be changed once set.
     /// @dev The Safe wallet cannot work in ERC4337 compatible mode, as the tx.origin will always be the bundler.
     address public safe;
-    /// @notice3 The fee that User will pay to the 'reward poster' per claim.
+    /// @notice The fee that User will pay to the 'reward poster' per claim.
     /// @dev If a reward has 100 recipients, the total compensation the `reward poster`
     /// will get for posting this reward is 100 * posterFee.
     uint256 public posterFee;
