@@ -22,7 +22,7 @@ contract RewardDistributor is ReentrancyGuard {
 
     /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
-    /// ensures a unique reward hash per contract in a Kwil network.
+    /// ensures a unique reward hash per contract in a Kwil network. The amount of each leaf is not the same.
     /// @dev To see construction of merkle tree, see here: https://github.com/kwilteam/rewards_contracts/blob/98272b6c5c5f4b8c3206532ca791df2690498356/peripheral/lib/reward.ts#L15
     mapping(bytes32 => address) public rewardPoster;
     /// @notice Mapping to keep track of the amount left to be claimed of a reward.
