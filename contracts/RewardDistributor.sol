@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-//import "hardhat/console.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -9,9 +8,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-/**
- * @title RewardDistributor - Kwil Reward distribution contract.
- */
+/// @title RewardDistributor - Kwil Reward distribution contract.
 contract RewardDistributor is ReentrancyGuard {
     /// @dev Use SafeERC20 to support non-standard ERC20 tokens like USDT.
     using SafeERC20 for IERC20;
