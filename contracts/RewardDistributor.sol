@@ -15,6 +15,10 @@ import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 contract RewardDistributor is ReentrancyGuard {
     using SafeERC20 for IERC20; // to support non-standard ERC20 tokens like USDT.
 
+    /// @notice Hardcoded limit for posterFee.
+    /// @dev 0.01 Ether is unreasonably high enough.
+    uint256 public constant maxPosterFee = 1e16; // 0.01 Ether
+
     /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network.
@@ -31,7 +35,9 @@ contract RewardDistributor is ReentrancyGuard {
     // safe is the GnosisSafe wallet address. Only this wallet can postReward/updatePosterFee.
     // Cannot be changed once set.
     address public safe;
-    // posterFee is the fee that User will pay to the 'reward poster' on each claim.
+    // posterFee is the fee that User will pay to the 'reward poster' per claim.
+    /// @dev If a reward has 100 recipients, the total compensation the `reward poster`
+    /// will get for posting this reward is 100 * posterFee.
     uint256 public posterFee;
     // rewardToken is the address of the ERC20 token used for rewards.
     // Cannot be changed once set.
@@ -53,7 +59,8 @@ contract RewardDistributor is ReentrancyGuard {
         // valid parameters
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
-        require(_posterFee > 0, "PostFee zero");
+        require(_posterFee > 0, "Fee zero");
+        require(_posterFee < maxPosterFee, "Fee too high");
 
         posterFee = _posterFee;
         rewardToken = IERC20(_rewardToken);
@@ -80,6 +87,7 @@ contract RewardDistributor is ReentrancyGuard {
     function updatePosterFee(uint256 newFee) external {
         require(msg.sender == safe, "Not allowed");
         require(newFee > 0, "Fee zero");
+        require(newFee < maxPosterFee, "Fee too high");
 
         uint256 oldFee = posterFee;
         posterFee = newFee;
