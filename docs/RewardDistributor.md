@@ -17,14 +17,6 @@ The `RewardDistributor` is a smart contract designed to securely distribute ERC2
 - [Rebasing ERC20 token](https://cointelegraph.com/explained/what-are-rebase-tokens-and-how-do-they-work) cannot be used as the reward token
 - Safe cannot operate in ERC4337 compatible mode
 
-## Different roles involved
-
-- SignerService: Kwil network reward signer service. It manages individual signatures for the SAFE wallet and uploads signatures to a Kwil database (to be used be `Poster Service`). Learn more about Kwil [here](https://docs.kwil.com).
-- Safe: Safe wallet that has admin privileges to update a contract's state, through `postReward`/`updatePosterFee`.
-- PosterService: A service that uses transactions from `SignerService` to propose/confirm/execute transactions through Safe to this contract.
-- User: A wallet which is able to claim reward through `claimReward`, providing proofs.
-
-NOTE: A diagram of the workflow is available in [README](../README.md).
 
 ## Contract Components
 
