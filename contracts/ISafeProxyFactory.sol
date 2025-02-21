@@ -29,7 +29,7 @@ interface ISafe {
 }
 
 interface ISafeProxyFactory {
-    function createChainSpecificProxyWithNonce(
+    function createProxyWithNonce(
         address _singleton,
         bytes memory initializer,
         uint256 saltNonce
