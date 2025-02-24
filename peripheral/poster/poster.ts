@@ -105,43 +105,32 @@ class EVMPoster {
 
     async postEpoch(epoch: FinalizedEpoch, safeMeta: SafeMeta, prioritizeTipInGwei: number = 0, prioritizeNonce: number, prioritize: boolean) {
         let root: string = epoch.root;
+        let amount: string = epoch.total;
         // amount and nonce match
         const eligibleVotes = epoch.votes.filter(
             v => v.nonce.toString() === safeMeta.nonce.toString())
 
-        const proposer = eligibleVotes[0].voter
-        const proposerSignature = eligibleVotes[0].signature
-        let proposeAmount: string = epoch.total
-
         // TODO: check if the contract has enough token, i.e. `token.balanceOf(epoch.ContractAddress) >= epoch.request.amount`
+        // TODO: maybe only use least required signatures, to safe gas.
 
-        // NOTE: maybe Kwil API can also return the safeTxHash associated with Reward? seems not necessary
-        // propose GnosisSafe tx
-        const safeTxHash = await this.safe.proposeRewardWithSignature(root, proposeAmount,
-            proposer, base64ToBytes32(proposerSignature));
+        const nonce = prioritize ? prioritizeNonce : undefined;
 
-        this.logger.info({ root: root, amount: proposeAmount, safeNonce: safeMeta.nonce,
-             safeTxHash: safeTxHash, proposer: proposer}, "Propose safe tx")
-
-        // confirm GnosisSafe tx; TODO: maybe only use least required signatures, to safe gas.
-        for (const vote of eligibleVotes) {
-            // await this.safe.confirmRewardWithSignature(root, amount, ethers.toQuantity(signature));
-            await this.safe.confirmTx(safeTxHash, base64ToBytes32(vote.signature));
-            this.logger.info({safeNonce: safeMeta.nonce, safeTxHash: safeTxHash, signer: vote.voter},
-                "Confirm safe tx")
-        }
+        const {signedTx, safeTxHash} = await this.safe.createTx(root, amount,
+            eligibleVotes.map(v => v.voter),
+            eligibleVotes.map(v => base64ToBytes32(v.signature)),
+            nonce);
 
         const feeData = await this.eth.getFeeData();
 
         // execute GnosisSafe tx
         const currentBlock = await this.eth.getBlockNumber()
         const accountNonce = await this.eth.getTransactionCount(this.signer.address)
-        const txHash = await this.safe.executeTx(safeTxHash, this.signer.privateKey, this.signer.address,
+        const txHash = await this.safe.executeTx(signedTx, this.signer.privateKey, this.signer.address,
             feeData.maxFeePerGas!.toString(),
             (feeData.maxPriorityFeePerGas! + toBigInt(prioritizeTipInGwei)).toString(),
-            prioritize ? prioritizeNonce : undefined);
+            nonce);
 
-        this.logger.info({ root: root, amount: proposeAmount,
+        this.logger.info({ root: root, amount: amount,
             safeTxHash: safeTxHash, txHash: txHash, block: currentBlock},
             "Execute safe tx, post reward")
 

@@ -81,8 +81,8 @@ interface KwilEpoch {
     reward_root: string;
     reward_amount: string;
     end_block_hash: string;
+    confirmed: boolean;
     voters: string[];
-    vote_amounts: string[];
     vote_nonces: number[];
     voter_signatures: string[];
 }
