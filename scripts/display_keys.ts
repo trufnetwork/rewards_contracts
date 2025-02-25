@@ -8,8 +8,8 @@ async function main() {
     console.log("current block: ", await hre.ethers.provider.getBlockNumber())
 
     const [ceo, cfo, eng, poster] = GenHDWallets(actConfig.mnemonic, 4);
-    console.log("Address", ceo.address);
-    console.log("PrivateKey", ceo.privateKey);
+    console.log("Address", poster.address);
+    console.log("PrivateKey", poster.privateKey);
 }
 
 main().catch(console.error)

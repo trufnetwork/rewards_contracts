@@ -125,6 +125,7 @@ class EVMPoster {
         // execute GnosisSafe tx
         const currentBlock = await this.eth.getBlockNumber()
         const accountNonce = await this.eth.getTransactionCount(this.signer.address)
+
         const txHash = await this.safe.executeTx(signedTx, this.signer.privateKey, this.signer.address,
             feeData.maxFeePerGas!.toString(),
             (feeData.maxPriorityFeePerGas! + toBigInt(prioritizeTipInGwei)).toString(),
@@ -152,10 +153,11 @@ class EVMPoster {
 
     async runOnce() {
         const safeMeta = await this.safe.getMetadata()
+
         // we always use the latest epoch from Kwil, since there might be more vote
         const newEpoch = await this.fetchActiveFinalizedEpoch(safeMeta);
         if (newEpoch === null) {
-            this.logger.info('No postable finalized epoch found')
+            this.logger.info(`No postable finalized epoch found. Safe nonce: ${safeMeta.nonce}, threshold: ${safeMeta.threshold}`, )
             return
         }
 

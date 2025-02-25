@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "hardhat/console.sol";
+import "./IRewardDistributor.sol";
 import "./RewardDistributor.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";

@@ -94,13 +94,15 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
+    const logger = getLogger();
+
     const configPath:string = process.argv[2]
     const cfg = loadConfig(configPath);
 
     const kwil = new KwilAPI(cfg.kwil_rpc, cfg.kwil_chain_id, cfg.kwil_namespace)
 
     const rewardInstance = await kwil.Info();
-    console.log("Reward instance:", rewardInstance);
+    logger.info(rewardInstance, "target erc20-bridge instance");
 
     let state: State = new State(); // in memory state
     if (cfg.state_file != "") {
@@ -111,7 +113,6 @@ async function main(): Promise<void> {
     }
 
     const eth = new ethers.JsonRpcProvider(cfg.eth_rpc);
-    console.log("reward escrow address: ", rewardInstance.escrow.toString())
     const rewardContract = new ethers.Contract(rewardInstance.escrow.toString(), RewardContractABI, eth);
     const safeAddr = await rewardContract.safe()
 
@@ -119,7 +120,6 @@ async function main(): Promise<void> {
     const rewardSafe = new RewardSafe(cfg.eth_rpc, ethNetwork.chainId, rewardInstance.escrow, safeAddr);
     const posterSigner = new ethers.Wallet(cfg.private_key, eth);
 
-    const logger = getLogger();
     // log the configuration
     const cfgForLog = {...cfg};
     cfgForLog.private_key = "***";
