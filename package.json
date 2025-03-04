@@ -7,7 +7,7 @@
   "version": "0.0.1",
   "main": "index.js",
   "dependencies": {
-    "@kwilteam/kwil-js": "^0.9.0-beta.2",
+    "@kwilteam/kwil-js": "^0.9.0-beta.3",
     "@openzeppelin/contracts": "^5.2.0",
     "@openzeppelin/merkle-tree": "^1.0.7",
     "@safe-global/protocol-kit": "^5.0.4",
@@ -206,7 +206,8 @@
     "dev:deploy:token": "npx hardhat run scripts/deploy_token.ts --network",
     "dev:redeploy:local": "rm -rf ./ignition/deployments/chain-31337; npx hardhat run scripts/deploy_local.ts --network localhost",
     "dev:redeploy:sepolia": "rm -rf ./ignition/deployments/chain-11155111; npx hardhat run scripts/deploy_factory.ts --network sepolia; npx hardhat run scripts/deploy_clone.ts --network sepolia",
-    "build": "tsc build --noEmit"
+    "build": "tsc build --noEmit",
+    "poster": "npx tsx peripheral/poster/cli.ts"
   },
   "scriptsComments": {
     "test:unit": "reward contract unit tests",

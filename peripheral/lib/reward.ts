@@ -125,7 +125,7 @@ class KwilAPI implements KwilRewardPosterAPI {
             return [];
         }
 
-        return res.data.map(row => {return row as KwilEpoch;});
+        return res.data.result!.map(row => {return row as KwilEpoch;});
     }
 
     async Info(): Promise<KwilRewardInstanceInfo> {
@@ -140,7 +140,7 @@ class KwilAPI implements KwilRewardPosterAPI {
             throw new Error("failed to get reward info");
         }
 
-        return res.data.map(row => {return row as KwilRewardInstanceInfo;})[0];
+        return res.data.result!.map(row => {return row as KwilRewardInstanceInfo;})[0];
     }
 }
 
