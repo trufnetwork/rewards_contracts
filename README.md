@@ -1,5 +1,18 @@
 # Kwil Reward Distribution
 
+### Deploy scripts
+
+There are a couple of tasks for deploying contracts:
+- `npx hardhat deploy-mock-token`, for testing mostly
+- `npx hardhat deploy-factory`
+- `npx hardhat deploy-clone`
+- `npx hardhat deploy-safe`, TODO
+
+If deploy to a new network, first we need to `deploy-factory`, then `deploy-clone` for each new escrow contract.
+If deploy to existing network, we only need to `deploy-clone`.
+
+> NOTE: use `--help` for arguments and flags.
+
 ### Development with Sepolia testnet
 
 Since we're using Safe, and it's hard to deploy a local full stack Safe

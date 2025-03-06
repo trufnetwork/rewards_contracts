@@ -1,9 +1,9 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
-export default buildModule("KwilMockToken", (m) => {
-    const mockToken = m.contract("KwilMockToken", [m.getParameter("owner")]);
-
+export default buildModule("KwilMockTokenModule", (m) => {
+    const deployer = m.getAccount(1);
+    const mockToken = m.contract("KwilMockToken",
+        [m.getParameter("owner", deployer)], // if 'owner' not given, use deployer
+        {from: deployer});
     return {mockToken};
 });
-
-// export default KwilMockTokenModule;
