@@ -2,13 +2,14 @@ import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import {toBigInt, parseUnits, formatEther, formatUnits, ethers, BaseContract, AbiCoder} from "ethers";
-import { zeroAddress } from "ethereumjs-util";
 import {IERC20, RewardDistributor, RewardDistributorFactory} from "../typechain-types";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import {
     genRewardMerkleTree, getChainSpecificDefaultSaltNonce,
     getMTreeProof,
 } from "../peripheral/lib/reward";
+import {zeroAddress} from "../peripheral/lib/utils";
+
 
 // Unit tests for RewardDistributor contract, without using GnosisSafe.
 // Thus, the Poster wallet will be acting as safe wallet, i.e.,

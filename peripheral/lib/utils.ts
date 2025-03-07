@@ -27,4 +27,7 @@ async function getTxRevertMessage(provider: ethers.Provider, tx:ethers.Transacti
     }
 }
 
-export { getTxRevertMessage }
+const zeroAddress = () => "0x0000000000000000000000000000000000000000";
+
+
+export { getTxRevertMessage, zeroAddress }

@@ -2,23 +2,26 @@ import { HardhatUserConfig, vars } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 
 import dotenv from 'dotenv';
+
+// Load environment variables.
 dotenv.config();
+const { SEPOLIA_RPC, MAINNET_RPC, ETHERSCAN_API_KEY, PK, MNEMONIC } = process.env;
+const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk" // same as hardhat's default mnemonic
 
 
+// @ts-ignore
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       hardfork: "merge", // https://ethereum.org/en/history/#paris
       forking: {
-          url: process.env.SEPOLIA_RPC!,
+          url: SEPOLIA_RPC!,
           blockNumber: 7606599,
       },
       chainId: 11155111,  // chainId must be the same as the forking network
-        accounts: {
-            mnemonic: process.env.SEPOLIA_MNEMONIC,
-            initialIndex: 0,
-            count: 4,
+        accounts: PK ? [PK] : {
+            mnemonic: MNEMONIC || DEFAULT_MNEMONIC,
         },
     },
   },

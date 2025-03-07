@@ -44,10 +44,10 @@ async function main() {
 
     const safeAddress = process.env.SEPOLIA_SAFE_ADDRESS ?? '';
     assert(safeAddress, "safe address not set");
-    const rewardAddress= process.env.SEPOLIA_REWARD_ADDRESS ?? '';
-    assert(rewardAddress, "reward address not set");
+    const escrowAddress= process.env.SEPOLIA_ESCROW_ADDRESS ?? '';
+    assert(escrowAddress, "escrow address not set");
 
-    await claim(rewardAddress,
+    await claim(escrowAddress,
         "0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7",
         "40000000000000000", // 0
         "0xe0453b16230d1b4c49800f73e0688d6b6cf3935094a1be83567b9381c249207e", // 0x...
