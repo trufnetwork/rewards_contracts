@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.18"
+    "hardhat": "^2.22.19"
   },
   "name": "kwil-solidity",
   "version": "0.0.1",
@@ -9,7 +9,7 @@
   "dependencies": {
     "@kwilteam/kwil-js": "^0.9.0-beta.3",
     "@openzeppelin/contracts": "^5.2.0",
-    "@openzeppelin/merkle-tree": "^1.0.7",
+    "@openzeppelin/merkle-tree": "^1.0.8",
     "@safe-global/protocol-kit": "^5.0.4",
     "@safe-global/sdk-starter-kit": "^1.0.4",
     "adm-zip": "^0.4.16",
@@ -59,15 +59,13 @@
     "depd": "^2.0.0",
     "diff": "^5.2.0",
     "dotenv": "^16.4.5",
-    "elliptic": "^6.5.4",
+    "elliptic": ">=6.6.1",
     "emoji-regex": "^8.0.0",
     "enquirer": "^2.4.1",
     "env-paths": "^2.2.1",
     "escalade": "^3.2.0",
     "escape-string-regexp": "^1.0.5",
     "ethereum-cryptography": "^1.2.0",
-    "ethereumjs-abi": "^0.6.8",
-    "ethereumjs-util": "^6.2.1",
     "ethjs-util": "^0.1.6",
     "evp_bytestokey": "^1.0.3",
     "fill-range": "^7.1.1",
@@ -146,7 +144,7 @@
     "safe-buffer": "^5.2.1",
     "safer-buffer": "^2.1.2",
     "scrypt-js": "^3.0.1",
-    "secp256k1": "^4.0.3",
+    "secp256k1": "^5.0.1",
     "semver": "^7.5.4",
     "serialize-javascript": "^6.0.2",
     "setimmediate": "^1.0.5",
