@@ -26,7 +26,8 @@ task("deploy-factory",
                 }
                 default: {
                     // const rewardToken = await hre.ethers.getContractAt("ERC20", );
-                    console.log(`deploy to '${hre.network.name}' network is not supported yet`);
+                    console.log(`'${hre.network.name}' network is not supported yet`);
+                    return
                 }
             }
         }

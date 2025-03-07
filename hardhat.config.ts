@@ -23,7 +23,7 @@ if (PK) {
 
 
 // import custom tasks
-import "./tasks/deploy_mock_token";
+import "./tasks/misc";
 import "./tasks/deploy_factory";
 import "./tasks/deploy_clone";
 import "./tasks/deploy_safe";

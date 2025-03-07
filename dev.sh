@@ -10,27 +10,14 @@ source ./.env
 COMPOSE="docker-compose --env-file .env -f docker-compose.yml"
 
 _generate-svc-config() {
-  tee /tmp/kwil-reward-signersvc-config.json <<EOF > /dev/null
-{
-  "kwil_rpc": "http://kwild:8484",
-  "private_key": "$TEST_PK",
-  "kwil_namespace": "rewards",
-  "sync_after_block": 0,
-  "sync_every": 30,
-  "state_file": "/tmp/kwil-reward-signersvc-state.json"
-}
-EOF
-
   tee /tmp/kwil-reward-postersvc-config.json <<EOF > /dev/null
 {
   "eth_rpc": "$SEPOLIA_RPC",
   "private_key": "$TEST_PK",
-  "safe_address": "$SEPOLIA_SAFE_ADDRESS",
-  "reward_address": "$SEPOLIA_REWARD_ADDRESS",
-  "sync_every": 30000,
   "kwil_rpc": "http://kwild:8484",
   "kwil_chain_id": "kwil-testnet",
   "kwil_namespace": "rewards",
+  "sync_every": 30000,
   "state_file": "/tmp/kwil-reward-postersvc-state.json"
 }
 EOF

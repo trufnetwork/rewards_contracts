@@ -61,8 +61,9 @@ services:
       --erc20-reward-signer.private-keys=$TEST_PK
       --erc20-reward-signer.eth-rpcs=$SEPOLIA_RPC
       --
-      --extensions.sepolia_sync.provider $SEPOLIA_RPC_WSS
-      --extensions.sepolia_sync.block_sync_chunk_size='1000000'
+      --erc20-bridge.rpc sepolia='$SEPOLIA_RPC'
+      --erc20-bridge.block-sync-chuck-size sepolia='1000000'
+      --erc20-bridge.signer sepolia=
     healthcheck:
       test: [ "CMD", "curl", "--fail-with-body", "-s", "http://localhost:8484/api/v1/health/user" ]
       interval: 2s

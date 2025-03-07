@@ -15,7 +15,7 @@ task("deploy-safe", "Deploy a safe contract")
         if (chainId.toString() === "31337") {
             // TODO: need to provide local deployed safe info, SAFE sdk doesn't know our local deployment.
             // const contractNetworkCfg = ContractNetworksConfig{};
-            console.log(`deploy to '${hre.network.name}' network is not supported yet`);
+            console.log(`'${hre.network.name}' network is not supported yet`);
             return
         }
 
@@ -68,15 +68,16 @@ task("deploy-safe", "Deploy a safe contract")
 
         // Execute this transaction using the Ethereum client of your choice
 
-        const txHash = await deployer.sendTransaction({
+        const txResp = await deployer.sendTransaction({
             to: deploymentTransaction.to,
             // value: BigInt(deploymentTransaction.value),
             data: deploymentTransaction.data
         })
 
         console.log(">>>")
-        console.log('Transaction hash:', txHash.hash)
-        const txReceipt = await hre.ethers.provider.getTransactionReceipt(txHash.hash)
+        console.log('Transaction hash:', txResp.hash)
+
+        const txReceipt = await txResp.wait()
 
         // Extract the Safe address from the deployment transaction receipt
         const safeAddress = getSafeAddressFromDeploymentTx(txReceipt, taskArgs.safeVersion)
