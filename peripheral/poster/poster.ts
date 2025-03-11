@@ -1,16 +1,19 @@
-import {ethers, parseUnits, toBigInt} from "ethers";
+import {ethers, formatUnits, parseUnits, toBigInt} from "ethers";
 import pino from "pino";
 
 import {KwilAPI, KwilEpoch} from "../lib/reward";
 import {RewardSafe, SafeMeta} from "../lib/gnosis";
 import {getTxRevertMessage} from "../lib/utils";
 import {FinalizedEpoch, EpochRecord, State, EpochVote} from "./state";
+import dotenv from "dotenv";
+dotenv.config();
 
 const CONSTANTS = {
-    FETCH_KWIL_REWARD_BATCH_LIMIT: 10,
-    NUM_OF_CONFIRMATION: 10, // 140s with 14s block time
-    NUM_OF_WAIT_TOO_LONG: 270, // roughly 1 hour
-    EXTRA_TIP_IN_GWEI: 3,
+    FETCH_KWIL_REWARD_BATCH_LIMIT: Number(process.env.KP_FETCH_KWIL_REWARD_BATCH_LIMIT ?? 10),
+    NUM_OF_CONFIRMATION: Number(process.env.KP_NUM_OF_CONFIRMATION ?? 10), // 140s with 14s block time
+    NUM_OF_WAIT_TOO_LONG: Number(process.env.KP_NUM_OF_WAIT_TOO_LONG ?? 270), // roughly 1 hour
+    GWEI_EXTRA_TIP: Number(process.env.KP_GWEI_EXTRA_TIP ?? 5),
+    GWEI_MAX_FEE_PER_GAS: Number(process.env.KP_GWEI_MAX_FEE_PER_GAS ?? 50), // we do not want to accidentally spend all of our money
 } as const
 
 function base64ToBytes32(s: string): string {
@@ -103,7 +106,7 @@ class EVMPoster {
         return epoch;
     }
 
-    async postEpoch(epoch: FinalizedEpoch, safeMeta: SafeMeta, prioritizeTipInGwei: number = 0, prioritizeNonce: number, prioritize: boolean) {
+    async postEpoch(epoch: FinalizedEpoch, safeMeta: SafeMeta, prioritizeTipInWei: number = 0, prioritizeNonce: number, prioritize: boolean) {
         let root: string = epoch.root;
         let amount: string = epoch.total;
         // amount and nonce match
@@ -113,22 +116,27 @@ class EVMPoster {
         // TODO: check if the contract has enough token, i.e. `token.balanceOf(epoch.ContractAddress) >= epoch.request.amount`
         // TODO: maybe only use least required signatures, to safe gas.
 
-        const nonce = prioritize ? prioritizeNonce : undefined;
+        const nonce = prioritize ? prioritizeNonce : safeMeta.nonce;
 
-        const {signedTx, safeTxHash} = await this.safe.createTx(root, amount,
+        const {safeTx, safeTxHash} = await this.safe.createTx(root, amount,
             eligibleVotes.map(v => v.voter),
             eligibleVotes.map(v => base64ToBytes32(v.signature)),
             nonce);
 
-        const feeData = await this.eth.getFeeData();
+        const feeData = await this.eth.getFeeData(); // https://docs.alchemy.com/docs/maxpriorityfeepergas-vs-maxfeepergas
+        // we will not operate on network pre EIP-1559, so maxFeePerGas/maxPriorityFeePerGas is not null
+        const gweiMaxFeePerGas = Number(formatUnits(feeData.maxFeePerGas!, 'gwei'))
+        if (gweiMaxFeePerGas > CONSTANTS.GWEI_MAX_FEE_PER_GAS) {
+            throw new Error(`Max fee per gas is too high: ${gweiMaxFeePerGas} > ${CONSTANTS.GWEI_MAX_FEE_PER_GAS} Gwei.`)
+        }
 
         // execute GnosisSafe tx
         const currentBlock = await this.eth.getBlockNumber()
         const accountNonce = await this.eth.getTransactionCount(this.signer.address)
 
-        const txHash = await this.safe.executeTx(signedTx, this.signer.privateKey, this.signer.address,
+        const txHash = await this.safe.executeTx(safeTx, this.signer.privateKey, this.signer.address,
             feeData.maxFeePerGas!.toString(),
-            (feeData.maxPriorityFeePerGas! + toBigInt(prioritizeTipInGwei)).toString(),
+            (feeData.maxPriorityFeePerGas! + toBigInt(prioritizeTipInWei)).toString(),
             nonce);
 
         this.logger.info({ root: root, amount: amount,
@@ -147,7 +155,7 @@ class EVMPoster {
                         postBlock: currentBlock,
                         includeBlock: 0,
                         accountNonce: accountNonce,
-                        safeNonce: safeMeta.nonce
+                        safeNonce: nonce
                     }})
     }
 
@@ -175,7 +183,7 @@ class EVMPoster {
         const lastRecord = this.state.records[this.state.records.length - 1];
 
         if (lastRecord  && lastRecord.epoch.root !== newEpoch.root) {
-            this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce }, 'New epoch, posting it')
+            this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce }, 'New epoch, post it')
             // new epoch for posterSvc; so we know last epoch is confirmed
             // We use Kwil's state not posterSvc's state to determine whether an epoch is confirmed.
             await this.postEpoch(newEpoch , safeMeta, 0, 0, false);
@@ -193,7 +201,7 @@ class EVMPoster {
                 if (currentBlock - lastRecord.result!.postBlock > CONSTANTS.NUM_OF_WAIT_TOO_LONG) {
                     this.logger.info( { root: lastRecord.epoch.root, tx: lastRecord.result!.hash, waited: currentBlock - lastRecord.result!.postBlock}, 'tx has been pending for too long, prioritize it. ')
                     const lastRecordTxNonce = lastRecord.result!.accountNonce!;
-                    await this.postEpoch(lastRecord.epoch, safeMeta, CONSTANTS.EXTRA_TIP_IN_GWEI, lastRecord.result!.accountNonce, true);
+                    await this.postEpoch(lastRecord.epoch, safeMeta, CONSTANTS.GWEI_EXTRA_TIP, lastRecord.result!.accountNonce, true);
                     return
                 }
 

@@ -151,7 +151,7 @@ class RewardSafe {
             safeTx.addSignature(new EthSafeSignature(signer, signatures[i], false))
         })
 
-        return {signedTx: safeTx, transactions, safeTxHash}
+        return {safeTx: safeTx, transactions, safeTxHash}
     }
 
     // execute a GnosisSafe transaction (assume the threshold has reached).

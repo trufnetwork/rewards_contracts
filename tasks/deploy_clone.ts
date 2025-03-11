@@ -2,7 +2,7 @@ import {HardhatRuntimeEnvironment} from "hardhat/types";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 import {parseUnits} from "ethers";
 import {task, types} from "hardhat/config";
-import {getChainSpecificSaltNonce} from "../peripheral/lib/reward";
+import {getChainSpecificDeployerSaltNonce} from "../peripheral/lib/reward";
 
 
 task("deploy-clone",
@@ -53,7 +53,7 @@ task("deploy-clone",
 
             const [deployer] = await hre.ethers.getSigners();
             const deployerNonce = await deployer.getNonce()
-            const saltNonce = getChainSpecificSaltNonce(chainId.toString(),
+            const saltNonce = getChainSpecificDeployerSaltNonce(chainId.toString(),
                 deployer.address,
                 deployerNonce.toString());
 

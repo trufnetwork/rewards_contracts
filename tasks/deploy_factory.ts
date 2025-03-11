@@ -47,6 +47,11 @@ async function deployFactory(hre: HardhatRuntimeEnvironment, deployer: HardhatEt
         config: {
             requiredConfirmations: 1,
         },
+        parameters: {
+            RewardDistributorSingletonModule: {
+                owner: deployer.address,
+            },
+        },
     });
 
     console.log(">>> ")
@@ -60,6 +65,7 @@ async function deployFactory(hre: HardhatRuntimeEnvironment, deployer: HardhatEt
         parameters: {
             RewardDistributorFactoryModule: {
                 imp: await singleton.getAddress(),
+                owner: deployer.address,
             },
         },
     })

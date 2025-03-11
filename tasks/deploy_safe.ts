@@ -1,25 +1,82 @@
 import {task, types} from "hardhat/config";
-import { SafeAccountConfig, getSafeAddressFromDeploymentTx} from '@safe-global/protocol-kit'
+import {
+    SafeAccountConfig,
+    getSafeAddressFromDeploymentTx,
+    ContractNetworksConfig,
+    predictSafeAddress,
+    SafeProvider, SafeDeploymentConfig
+} from '@safe-global/protocol-kit'
 import Safe from '@safe-global/protocol-kit';
+import {getChainSpecificDeployerSaltNonce} from "../peripheral/lib/reward";
+import {toBigInt} from "ethers";
+
+const fs = require('fs');
+
+interface localDeployedSafe {
+    address: string;
+    abi: any[];
+}
+
+function getLocalDeployments(network: string, deploymentFile: string): Record<string, localDeployedSafe> {
+    try {
+        const data = fs.readFileSync(deploymentFile, 'utf-8');
+        const deployed = JSON.parse(data);
+
+
+        const customNetwork = deployed[network].find((deployment: { name: string }) => deployment.name === 'custom');
+        if (customNetwork) {
+            console.log("Custom Network Deployment Found");
+            return customNetwork["contracts"];
+        } else {
+            console.log("No 'custom' network deployment found for this network.");
+            return {};
+        }
+
+    } catch (e) {
+        console.error("Failed to read or parse deployment file:", e.message);
+        return {};
+    }
+}
+
 
 task("deploy-safe", "Deploy a safe contract")
     .addPositionalParam("threshold", "Threshold of the safe", undefined, types.int)
     .addOptionalParam("safeVersion", "Safe version", "1.4.1", types.string)
     .addVariadicPositionalParam("owners", "Owners of the safe", undefined, types.string)
+    .addOptionalParam("deployments", "the safe deployments info file path; you can get his from safe-smart-account repo, run `npx hardhat export --export-all custom`", undefined, types.string)
     .setAction(
     async(taskArgs, hre)=> {
         let chainId = hre.network.config.chainId ?? 31337;
         console.log(`Current network: ${hre.network.name}/${chainId}`)
         console.log("Current height: ", await hre.ethers.provider.getBlockNumber())
 
-        if (chainId.toString() === "31337") {
-            // TODO: need to provide local deployed safe info, SAFE sdk doesn't know our local deployment.
-            // const contractNetworkCfg = ContractNetworksConfig{};
-            console.log(`'${hre.network.name}' network is not supported yet`);
-            return
-        }
+        let deployed: Record<string, localDeployedSafe> = {};
+        let contractNetworks: ContractNetworksConfig | undefined;
 
-        let provider: string;
+        if (chainId.toString() === "31337") { // use local deployment from taskArgs.deployments
+            if (!taskArgs.deployments) {
+                console.log("'--deployments' is not configured")
+                return;
+            }
+
+            deployed = getLocalDeployments(chainId.toString(), taskArgs.deployments);
+
+            // https://docs.safe.global/sdk-protocol-kit/reference/safe-factory
+            contractNetworks = {
+                [chainId.toString()] : {
+                    safeSingletonAddress: deployed['Safe']["address"],
+                    safeProxyFactoryAddress: deployed['SafeProxyFactory']["address"],
+                    multiSendAddress: deployed['MultiSend']["address"],
+                    multiSendCallOnlyAddress: deployed['MultiSendCallOnly']["address"],
+                    fallbackHandlerAddress: deployed['CompatibilityFallbackHandler']["address"],
+                    signMessageLibAddress: deployed['SignMessageLib']["address"],
+                    createCallAddress: deployed['CreateCall']["address"],
+                    simulateTxAccessorAddress: deployed['SimulateTxAccessor']["address"],
+                }
+            } as ContractNetworksConfig
+
+            console.log("Local safe deployments: ", contractNetworks);
+        }
 
         if (!("url" in hre.network.config)) {
             console.log("network provider url is not configured")
@@ -46,31 +103,50 @@ task("deploy-safe", "Deploy a safe contract")
         console.log("Threshold: ", taskArgs.threshold)
         console.log("Safe Version: ", taskArgs.safeVersion)
 
-        provider = hre.network.config.url;
+        const provider = hre.network.config.url;
         const [deployer] = await hre.ethers.getSigners();
+        const safeProvider = new SafeProvider({ provider:provider, signer:deployer.address })
+
+        const deployerNonce = await deployer.getNonce()
+        const deploySaltNonce = getChainSpecificDeployerSaltNonce(chainId.toString(),
+            deployer.address,
+            deployerNonce.toString());
 
         const safeAccountConfig: SafeAccountConfig = {
             owners: taskArgs.owners,
             threshold: taskArgs.threshold,
         }
 
-        const predictSafe = {
-            safeAccountConfig,
-            safeDeploymentConfig: {
-                safeVersion: taskArgs.safeVersion, // optional parameter
-                // saltNonce: , // optional parameter
-            },
+        const safeDeploymentConfig: SafeDeploymentConfig = {
+            safeVersion: taskArgs.safeVersion, // optional parameter
+            saltNonce: deploySaltNonce, // optional parameter
         }
 
-        const safeProto = await Safe.init({ provider: provider, signer: deployer.address, predictedSafe: predictSafe })
+        const predictSafe = {
+            safeAccountConfig,
+            safeDeploymentConfig
+        }
+
+        const safeProto = await Safe.init({ provider: provider,
+            // isL1SafeSingleton:
+            signer: deployer.address, predictedSafe: predictSafe, contractNetworks: contractNetworks })
 
         const deploymentTransaction = await safeProto.createSafeDeploymentTransaction()
 
-        // Execute this transaction using the Ethereum client of your choice
+        const predicatedSafeAddress = await predictSafeAddress({
+            safeProvider: safeProvider,
+            chainId: toBigInt(chainId.toString()),
+            safeAccountConfig: safeAccountConfig,
+            safeDeploymentConfig: safeDeploymentConfig,
+            // isL1SafeSingleton:
+            customContracts: contractNetworks ? contractNetworks[chainId.toString()]: undefined,
+        })
 
+        console.log("Predicted Safe Address: ", predicatedSafeAddress);
+
+        // https://github.com/safe-global/safe-core-sdk/blob/main/guides/integrating-the-safe-core-sdk.md
         const txResp = await deployer.sendTransaction({
             to: deploymentTransaction.to,
-            // value: BigInt(deploymentTransaction.value),
             data: deploymentTransaction.data
         })
 
@@ -78,15 +154,14 @@ task("deploy-safe", "Deploy a safe contract")
         console.log('Transaction hash:', txResp.hash)
 
         const txReceipt = await txResp.wait()
-
-        // Extract the Safe address from the deployment transaction receipt
-        const safeAddress = getSafeAddressFromDeploymentTx(txReceipt, taskArgs.safeVersion)
-        console.log('safeAddress from event:', safeAddress)
+        // // Extract the Safe address from the deployment transaction receipt; this only works if l2SafeSingleton
+        // const safeAddress = getSafeAddressFromDeploymentTx(txReceipt, taskArgs.safeVersion)
+        // console.log('safeAddress from event:', safeAddress)
 
         const deployedSafe = await Safe.init({
             provider: provider,
-            // signer: deployer.address,
-            safeAddress: safeAddress,
+            safeAddress: predicatedSafeAddress,
+            contractNetworks: contractNetworks
         })
 
         console.log('Is Safe deployed:', await deployedSafe.isSafeDeployed())

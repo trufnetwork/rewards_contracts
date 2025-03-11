@@ -18,7 +18,7 @@ function getChainSpecificDefaultSaltNonce(chainId: number): string {
     return keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId.toString()))
 }
 
-function getChainSpecificSaltNonce(chainId: string, deployer: string, deployerNonce: string): string {
+function getChainSpecificDeployerSaltNonce(chainId: string, deployer: string, deployerNonce: string): string {
     return keccak256(stringToUtf8Bytes(PREDETERMINED_SALT_NONCE + chainId + deployer + deployerNonce))
 }
 
@@ -151,7 +151,7 @@ export {
     genPostRewardTxData,
     genUpdatePosterFeeTxData,
     getChainSpecificDefaultSaltNonce,
-    getChainSpecificSaltNonce,
+    getChainSpecificDeployerSaltNonce,
     RewardContractABI,
     // types
     KwilEpoch,
