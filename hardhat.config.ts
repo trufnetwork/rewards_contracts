@@ -8,7 +8,7 @@ const solidityVersion = "0.8.27";
 
 // Load environment variables.
 dotenv.config();
-const { SEPOLIA_RPC, MAINNET_RPC, ETHERSCAN_API_KEY, PK, MNEMONIC } = process.env;
+const { SEPOLIA_RPC, BASE_SEPOLIA_RPC, MAINNET_RPC, ETHERSCAN_API_KEY, PK, MNEMONIC } = process.env;
 
 const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk" // same as hardhat's default mnemonic
 
@@ -51,6 +51,11 @@ const config: HardhatUserConfig = {
             url: SEPOLIA_RPC,
             chainId: 11155111,
         },
+        baseSepolia: {
+            ...sharedNetworkConfig,
+            url: BASE_SEPOLIA_RPC,
+            chainId: 84532,
+        },
         mainnet: {
             ...sharedNetworkConfig,
             url: MAINNET_RPC,
@@ -59,6 +64,16 @@ const config: HardhatUserConfig = {
     },
   etherscan: {
       apiKey: ETHERSCAN_API_KEY,
+      customChains: [
+          {
+              network: "base-sepolia",
+              chainId: 84532,
+              urls: {
+                  apiURL: "https://base-sepolia.blockscout.com/api",
+                  browserURL: "https://base-sepolia.blockscout.com/",
+              }
+          }
+      ]
   }
 };
 

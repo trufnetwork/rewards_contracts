@@ -18,23 +18,7 @@ task("deploy-clone",
             console.log(`Current network: ${hre.network.name}/${chainId}`)
             console.log("Current height: ", await hre.ethers.provider.getBlockNumber())
 
-            let deployed: Record<string, string> = {};
-
-            switch (chainId) {
-                case 11155111: {
-                    deployed = require("../ignition/deployments/chain-11155111/deployed_addresses.json");
-                    break;
-                }
-                case 31337: { // hardhat local node
-                    deployed = require("../ignition/deployments/chain-31337/deployed_addresses.json");
-                    break;
-                }
-                default: {
-                    // const rewardToken = await hre.ethers.getContractAt("ERC20", );
-                    console.log(`'${hre.network.name}' network is not supported yet`);
-                }
-            }
-
+            const deployed = require(`../ignition/deployments/chain-${chainId.toString()}/deployed_addresses.json`);
             let deployedSingleton: string = deployed["RewardDistributorSingletonModule#RewardDistributor"];
             let deployedFactory: string = deployed["RewardDistributorFactoryModule#RewardDistributorFactory"];
 

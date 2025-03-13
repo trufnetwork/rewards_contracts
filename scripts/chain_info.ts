@@ -1,6 +1,6 @@
 import hre from "hardhat";
-import dotenv from 'dotenv';
 import {parseUnits} from "ethers";
+import dotenv from 'dotenv';
 dotenv.config();
 
 

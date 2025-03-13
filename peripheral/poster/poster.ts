@@ -4,7 +4,7 @@ import pino from "pino";
 import {KwilAPI, KwilEpoch} from "../lib/reward";
 import {RewardSafe, SafeMeta} from "../lib/gnosis";
 import {getTxRevertMessage} from "../lib/utils";
-import {FinalizedEpoch, EpochRecord, State, EpochVote} from "./state";
+import {FinalizedEpoch, EpochRecord, State, EpochVote, TxInfo} from "./state";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -13,7 +13,7 @@ const CONSTANTS = {
     NUM_OF_CONFIRMATION: Number(process.env.KP_NUM_OF_CONFIRMATION ?? 10), // 140s with 14s block time
     NUM_OF_WAIT_TOO_LONG: Number(process.env.KP_NUM_OF_WAIT_TOO_LONG ?? 270), // roughly 1 hour
     GWEI_EXTRA_TIP: Number(process.env.KP_GWEI_EXTRA_TIP ?? 5),
-    GWEI_MAX_FEE_PER_GAS: Number(process.env.KP_GWEI_MAX_FEE_PER_GAS ?? 50), // we do not want to accidentally spend all of our money
+    GWEI_MAX_FEE_PER_GAS: Number(process.env.KP_GWEI_MAX_FEE_PER_GAS ?? 100), // we do not want to accidentally spend all of our money
 } as const
 
 function base64ToBytes32(s: string): string {
@@ -64,7 +64,10 @@ class EVMPoster {
         }
 
         if (reqs.length == 1) {
-            // this only happens on the very first epoch, we just skip and wait until it finalizes
+            // Two reasons there is only one active epoches
+            // 1. the very first epoch is just created
+            // 2. the previous epoch is confirmed, but currently there are no rewards/issuances in the current epoch
+            // In either case, we wait until there are 2 active epoches; and the 1st one(finalized) is ready to be voted.
             return null;
         }
 
@@ -121,13 +124,14 @@ class EVMPoster {
         const {safeTx, safeTxHash} = await this.safe.createTx(root, amount,
             eligibleVotes.map(v => v.voter),
             eligibleVotes.map(v => base64ToBytes32(v.signature)),
-            nonce);
+            // nonce
+        );
 
         const feeData = await this.eth.getFeeData(); // https://docs.alchemy.com/docs/maxpriorityfeepergas-vs-maxfeepergas
         // we will not operate on network pre EIP-1559, so maxFeePerGas/maxPriorityFeePerGas is not null
         const gweiMaxFeePerGas = Number(formatUnits(feeData.maxFeePerGas!, 'gwei'))
         if (gweiMaxFeePerGas > CONSTANTS.GWEI_MAX_FEE_PER_GAS) {
-            throw new Error(`Max fee per gas is too high: ${gweiMaxFeePerGas} > ${CONSTANTS.GWEI_MAX_FEE_PER_GAS} Gwei.`)
+            throw new Error(`Max fee per gas is too high: ${gweiMaxFeePerGas} > ${CONSTANTS.GWEI_MAX_FEE_PER_GAS}(configured) Gwei.`)
         }
 
         // execute GnosisSafe tx
@@ -137,10 +141,11 @@ class EVMPoster {
         const txHash = await this.safe.executeTx(safeTx, this.signer.privateKey, this.signer.address,
             feeData.maxFeePerGas!.toString(),
             (feeData.maxPriorityFeePerGas! + toBigInt(prioritizeTipInWei)).toString(),
-            nonce);
+            // nonce
+        );
 
         this.logger.info({ root: root, amount: amount,
-            safeTxHash: safeTxHash, txHash: txHash, block: currentBlock},
+            safeTxHash: safeTxHash, txHash: txHash, block: currentBlock,},
             "Execute safe tx, post reward")
 
         // get posted tx info
@@ -150,13 +155,13 @@ class EVMPoster {
             epoch: epoch,
             result: {
                         hash: txHash,
-                        fee: (tx!.gasPrice * tx!.gasLimit).toString(),
-                        gasPrice: tx!.gasPrice.toString(),
+                        // fee: "", not available yet
+                        // gasPrice: "", not available yet
                         postBlock: currentBlock,
                         includeBlock: 0,
                         accountNonce: accountNonce,
                         safeNonce: nonce
-                    }})
+                    } as TxInfo })
     }
 
     async runOnce() {

@@ -1,11 +1,12 @@
 import {task, types} from "hardhat/config";
 import KwilMockTokenModule from "../ignition/modules/KwilMockToken";
 import dotenv from "dotenv";
-import {parseUnits} from "ethers";
+import {formatUnits, parseUnits} from "ethers";
 import hre from "hardhat";
 import {HardhatNetworkHDAccountsConfig} from "hardhat/src/types/config";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 import {HardhatRuntimeEnvironment} from "hardhat/types";
+import Safe from "@safe-global/protocol-kit";
 
 dotenv.config();
 
@@ -23,6 +24,11 @@ task("deploy-mock-token","Deploy a mock ERC20 token named 'KMT'")
                 defaultSender: deployer.address,
                 config: {
                     requiredConfirmations: 1,
+                },
+                parameters: {
+                    KwilMockTokenModule: {
+                        owner: deployer.address,
+                    },
                 },
             });
 
@@ -81,7 +87,7 @@ async function claim(hre: HardhatRuntimeEnvironment,
     console.log("txReceipt: ", txReceipt);
 }
 
-task ("claim-rewards", "Claim rewards from the escrow contract")
+task("claim-rewards", "Claim rewards from the escrow contract")
     .addPositionalParam("escrow", "address of the escrow(reward distributor)", undefined, types.string)
     .addPositionalParam("recipient", "address of the recipient", undefined, types.string)
     .addPositionalParam("amount", "amount of reward to claim", undefined, types.string)
@@ -94,16 +100,9 @@ task ("claim-rewards", "Claim rewards from the escrow contract")
             console.log(`Current network: ${hre.network.name}/${chainId}`)
             console.log("Current height: ", await hre.ethers.provider.getBlockNumber())
 
-
-            if (hre.network.name != "sepolia") {
-                console.log("Skip test on network: " + hre.network.name);
-                return;
-            }
-
-            let actConfig: HardhatNetworkHDAccountsConfig = hre.network.config.accounts as HardhatNetworkHDAccountsConfig;
             console.log("current block: ", await hre.ethers.provider.getBlockNumber())
 
-            // as long as the signer has Sepolia ETH
+            // as long as the signer has ETH
             const claimer = (await hre.ethers.getSigners())[0];
 
             // address recipient, uint256 amount, bytes32 kwilBlockHash, bytes32 rewardRoot, bytes32[] calldata proofs
@@ -117,3 +116,36 @@ task ("claim-rewards", "Claim rewards from the escrow contract")
                 taskArgs.proofs
                 );
         })
+
+task("show-escrow", "Show escrow contract info")
+    .addPositionalParam("escrow", "address of the escrow(reward distributor)", undefined, types.string)
+    .setAction(
+        async (taskArgs, hre) => {
+            let chainId = hre.network.config.chainId ?? 31337;
+            console.log(`Current network: ${hre.network.name}/${chainId}`)
+            console.log("Current height: ", await hre.ethers.provider.getBlockNumber())
+
+            const rd = await hre.ethers.getContractAt("RewardDistributor", taskArgs.escrow);
+            console.log(`PosterFee: ${formatUnits(await rd.posterFee(), "ether")} eth`)
+
+            const tokenAddr = await rd.rewardToken();
+            console.log(`RewardToken: ${tokenAddr}`)
+            const token = await hre.ethers.getContractAt("ERC20", tokenAddr);
+            console.log(`RewardToken Name: ${await token.name()}`)
+            console.log(`RewardToken Symbol: ${await token.symbol()}`)
+            console.log(`RewardToken Decimals: ${await token.decimals()}`)
+
+            const safeAddress = await rd.safe();
+            const provider = hre.network.config.url;
+            const deployedSafe = await Safe.init({
+                provider: provider,
+                safeAddress: safeAddress,
+                // contractNetworks: contractNetworks
+            })
+
+            console.log('Safe Address:', await deployedSafe.getAddress())
+            console.log('Is Safe deployed:', await deployedSafe.isSafeDeployed())
+            console.log('Safe Owners:', await deployedSafe.getOwners())
+            console.log('Safe Threshold:', await deployedSafe.getThreshold())
+        }
+    )

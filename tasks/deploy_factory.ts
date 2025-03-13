@@ -15,21 +15,7 @@ task("deploy-factory",
 
             const [deployer] = await hre.ethers.getSigners();
 
-            switch (chainId) {
-                case 11155111: { // sepolia
-                    await deployFactory(hre, deployer);
-                    break;
-                }
-                case 31337: { // hardhat local node
-                    await deployFactory(hre, deployer);
-                    break;
-                }
-                default: {
-                    // const rewardToken = await hre.ethers.getContractAt("ERC20", );
-                    console.log(`'${hre.network.name}' network is not supported yet`);
-                    return
-                }
-            }
+            await deployFactory(hre, deployer);
         }
     );
 
