@@ -10,7 +10,7 @@ dotenv.config();
 
 const CONSTANTS = {
     FETCH_KWIL_REWARD_BATCH_LIMIT: Number(process.env.KP_FETCH_KWIL_REWARD_BATCH_LIMIT ?? 10),
-    NUM_OF_CONFIRMATION: Number(process.env.KP_NUM_OF_CONFIRMATION ?? 10), // 140s with 14s block time
+    NUM_OF_CONFIRMATION: Number(process.env.KP_NUM_OF_CONFIRMATION ?? 12), // 168s with 14s block time, same as kwild
     NUM_OF_WAIT_TOO_LONG: Number(process.env.KP_NUM_OF_WAIT_TOO_LONG ?? 270), // roughly 1 hour
     GWEI_EXTRA_TIP: Number(process.env.KP_GWEI_EXTRA_TIP ?? 5),
     GWEI_MAX_FEE_PER_GAS: Number(process.env.KP_GWEI_MAX_FEE_PER_GAS ?? 100), // we do not want to accidentally spend all of our money
@@ -100,6 +100,7 @@ class EVMPoster {
         };
 
         epoch.votes = epoch.votes.filter(v => v.nonce.toString() === safeMeta.nonce.toString());
+
         if (epoch.votes.length < safeMeta.threshold) {
             return null;
         }
@@ -180,7 +181,7 @@ class EVMPoster {
 
         // if no state, then this is the first epoch posterSvc ever seen
         if (this.state.records.length === 0) {
-            this.logger.info('First epoch, posting it')
+            this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce },'First epoch, posting it')
             await this.postEpoch(newEpoch, safeMeta, 0, 0, false);
             return
         }
@@ -193,6 +194,12 @@ class EVMPoster {
             // We use Kwil's state not posterSvc's state to determine whether an epoch is confirmed.
             await this.postEpoch(newEpoch , safeMeta, 0, 0, false);
         } else {
+            if (lastRecord.result!.includeBlock !== 0) {
+                // this should only happens, if kwil has issues not syncing correctly;
+                this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce }, 'Posted epoch has been included')
+                return
+            }
+
             this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce }, 'Posted epoch, checking status')
 
             // NOTE: what if Safe is updated(nonce changed) after posterSvc submit the tx?

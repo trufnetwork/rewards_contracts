@@ -25,7 +25,6 @@ class RewardSafe {
     safeAddress: string;
     rewardAddress: string;
 
-
     constructor(rpc: Eip1193Provider | string, chainID: bigint,rewardAddress: string, safeAddress: string) {
         this.rpc = rpc;
         this.safeAddress = safeAddress;
@@ -127,6 +126,7 @@ class RewardSafe {
             safeAddress: this.safeAddress,
         })
 
+
         // TODO: maybe use multicall3
         return {nonce: await safe.getNonce(),
                 threshold: await safe.getThreshold(),
@@ -145,7 +145,6 @@ class RewardSafe {
 
         // REF: https://docs.safe.global/sdk-protocol-kit/guides/signatures/transactions
         signers.forEach((signer, i) => {
-
             // NOTE: `false` when EthSafeSignature, means this is the signature from EOA, i.e., ECDSA signature
             // THE V or the last two hex in the signature should be 1f(31) or 20(32), because we use EIP-191
             safeTx.addSignature(new EthSafeSignature(signer, signatures[i], false))
