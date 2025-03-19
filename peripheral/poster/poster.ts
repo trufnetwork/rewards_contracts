@@ -147,7 +147,7 @@ class EVMPoster {
 
         this.logger.info({ root: root, amount: amount,
             safeTxHash: safeTxHash, txHash: txHash, block: currentBlock,},
-            "Execute safe tx, post reward")
+            "Execute safe tx, post epoch")
 
         // get posted tx info
         const tx = await this.eth.getTransaction(txHash);
@@ -171,7 +171,7 @@ class EVMPoster {
         // we always use the latest epoch from Kwil, since there might be more vote
         const newEpoch = await this.fetchActiveFinalizedEpoch(safeMeta);
         if (newEpoch === null) {
-            this.logger.info(`No postable finalized epoch found. Safe nonce: ${safeMeta.nonce}, threshold: ${safeMeta.threshold}`, )
+            this.logger.info(`No finalized epoch. Safe nonce: ${safeMeta.nonce}, threshold: ${safeMeta.threshold}`, )
             return
         }
 
@@ -196,7 +196,7 @@ class EVMPoster {
         } else {
             if (lastRecord.result!.includeBlock !== 0) {
                 // this should only happens, if kwil has issues not syncing correctly;
-                this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce }, 'Posted epoch has been included')
+                this.logger.warn({ root: newEpoch.root, nonce: safeMeta.nonce }, 'Posted epoch has been included on evm chain, but not confirmed on kwil network')
                 return
             }
 

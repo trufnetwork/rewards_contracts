@@ -65,35 +65,28 @@ async function claim(hre: HardhatRuntimeEnvironment,
                      rewardAmount: string,
                      kwilBlockHash: string,
                      treeRoot: string,
-                     proofsStr: string,
+                     proofs: string[],
                      txValue: string = "0.02") {
-    // convert to hex if they're not HEX (base64)
-    if (!kwilBlockHash.startsWith("0x")) {
-        kwilBlockHash = base64ToHex(kwilBlockHash);
-    }
-    if (!treeRoot.startsWith("0x")) {
-        treeRoot = base64ToHex(treeRoot);
-    }
-    const proofs = proofsStr.split(",").map(proof => proof.startsWith("0x") ? proof : base64ToHex(proof));
-
     const rd = await hre.ethers.getContractAt("RewardDistributor", rewardAddress);
     const rewardTokenAddress = await rd.rewardToken();
     const rewardToken = await hre.ethers.getContractAt("ERC20", rewardTokenAddress);
+
+    console.log("current balance: ", formatUnits(await rewardToken.balanceOf(recipient), "ether"))
+
     const txResp = await rd.connect(claimer).claimReward(recipient, rewardAmount, kwilBlockHash, treeRoot, proofs,
         {value: hre.ethers.parseUnits(txValue, "ether")})
-    console.log("txResp: ", txResp);
-
+    console.log("txHash: ", txResp.hash);
     const txReceipt = await txResp.wait();
-    console.log("txReceipt: ", txReceipt);
+    console.log("new balance:     ", formatUnits( await rewardToken.balanceOf(recipient), "ether"))
 }
 
 task("claim-rewards", "Claim rewards from the escrow contract")
     .addPositionalParam("escrow", "address of the escrow(reward distributor)", undefined, types.string)
     .addPositionalParam("recipient", "address of the recipient", undefined, types.string)
     .addPositionalParam("amount", "amount of reward to claim", undefined, types.string)
-    .addPositionalParam("kwilBlockHash", "hash of the kwil block; base64 or hex(with 0x)", undefined, types.string)
-    .addPositionalParam("rewardRoot", "reward merkle tree root; base64 or hex(with 0x)", undefined, types.string)
-    .addPositionalParam("proofs", "merkle tree proofs;base64 or hex(with 0x); comma separated", undefined, types.string)
+    .addPositionalParam("kwilBlockHash", "hash of the kwil block; base64 or hex(starts with 0x)", undefined, types.string)
+    .addPositionalParam("rewardRoot", "reward merkle tree root; base64 or hex(starts with 0x)", undefined, types.string)
+    .addPositionalParam("proofs", "merkle tree proofs;base64 or hex(starts with 0x); comma separated", undefined, types.string)
     .setAction(
         async (taskArgs, hre) => {
             let chainId = hre.network.config.chainId ?? 31337;
@@ -105,16 +98,39 @@ task("claim-rewards", "Claim rewards from the escrow contract")
             // as long as the signer has ETH
             const claimer = (await hre.ethers.getSigners())[0];
 
+            let kwilBlockHash:string = taskArgs.kwilBlockHash;
+            let rewardRoot:string = taskArgs.rewardRoot;
+
+            // convert to hex if they're not HEX (base64)
+            if (!kwilBlockHash.startsWith("0x")) {
+                kwilBlockHash = base64ToHex(kwilBlockHash);
+            }
+            if (!rewardRoot.startsWith("0x")) {
+                rewardRoot = base64ToHex(rewardRoot);
+            }
+
+            let proofs:string[] = []
+            if (taskArgs.proofs.length !== 0) {
+                proofs = taskArgs.proofs.split(",").map((proof: string) => proof.startsWith("0x") ? proof : base64ToHex(proof));
+            }
+
+            console.log(">>>")
+            console.log("claimer address:   ", claimer.address);
+            console.log("escrow address:    ", taskArgs.escrow);
+            console.log("recipient address: ", taskArgs.recipient);
+            console.log("amount:            ", formatUnits(taskArgs.amount, "ether"))
+            console.log("kwilBlockHash:     ", kwilBlockHash);
+            console.log("rewardRoot:        ", rewardRoot);
+            console.log("proofs:            ", proofs);
+            console.log(">>>")
+
             // address recipient, uint256 amount, bytes32 kwilBlockHash, bytes32 rewardRoot, bytes32[] calldata proofs
-            await claim(hre,
-                claimer,
-                taskArgs.escrow,
+            await claim(hre, claimer, taskArgs.escrow,
                 taskArgs.recipient,
                 taskArgs.amount,
-                taskArgs.kwilBlockHash,
-                taskArgs.rewardRoot,
-                taskArgs.proofs
-                );
+                kwilBlockHash,
+                rewardRoot,
+                proofs);
         })
 
 task("show-escrow", "Show escrow contract info")
