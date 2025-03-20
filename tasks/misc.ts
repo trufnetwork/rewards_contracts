@@ -37,7 +37,7 @@ task("deploy-mock-token","Deploy a mock ERC20 token named 'KMT'")
         })
 
 task("transfer-token", "Transfer mock token to a given address")
-    .addPositionalParam("tokenAddr", "address of the token to transfer", undefined, types.string)
+    .addPositionalParam("tokenAddr", "address of the Erc20 token to transfer from", undefined, types.string)
     .addPositionalParam("amount", "amount of token to transfer, in eth", undefined, types.string)
     .addPositionalParam("to", "recipient address to transfer token to", undefined, types.string)
     .setAction(
@@ -86,7 +86,7 @@ task("claim-rewards", "Claim rewards from the escrow contract")
     .addPositionalParam("amount", "amount of reward to claim", undefined, types.string)
     .addPositionalParam("kwilBlockHash", "hash of the kwil block; base64 or hex(starts with 0x)", undefined, types.string)
     .addPositionalParam("rewardRoot", "reward merkle tree root; base64 or hex(starts with 0x)", undefined, types.string)
-    .addPositionalParam("proofs", "merkle tree proofs;base64 or hex(starts with 0x); comma separated", undefined, types.string)
+    .addPositionalParam("proofs", "merkle tree proofs;base64 or hex(starts with 0x); comma separated; use '' for empty proofs", undefined, types.string)
     .setAction(
         async (taskArgs, hre) => {
             let chainId = hre.network.config.chainId ?? 31337;

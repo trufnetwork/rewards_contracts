@@ -1,0 +1,19 @@
+{
+  //REMOVE: ethereum provider, needs to be the same network as kwil_erc20_alias is using
+  "eth_rpc": "",
+  "private_key": "",
+  "kwil_rpc": "http://localhost:8484",
+  "kwil_chain_id": "kwil-testnet",
+  //REMOVE: erc20 extension alias
+  "kwil_erc20_alias": "rewards",
+  //REMOVE: milliseconds
+  "sync_every": 60000,
+  //REMOVE: extra tip when speed up if wait too long
+  "gwei_extra_tip": 5,
+  //REMOVE: max fee per gas
+  "gwei_max_fee_per_gas": 100,
+  //REMOTE: number of blocks to wait before we speedup
+  "blocks_before_speedup": 270,
+  //REMOVE: db file;absolute path
+  "state_file": "/tmp/reward-poster-state.json"
+}

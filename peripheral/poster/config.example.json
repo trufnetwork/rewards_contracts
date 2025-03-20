@@ -1,9 +1,0 @@
-{
-  "eth_rpc": "",
-  "private_key": "",
-  "kwil_rpc": "http://localhost:8484",
-  "kwil_chain_id": "kwil-testnet",
-  "kwil_namespace": "rewards",
-  "sync_every": 60000, //REMOVE: milliseconds
-  "state_file": "/tmp/reward-poster-state.json" //REMOVE: db file;absolute path
-}

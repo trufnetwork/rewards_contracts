@@ -9,11 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const CONSTANTS = {
-    FETCH_KWIL_REWARD_BATCH_LIMIT: Number(process.env.KP_FETCH_KWIL_REWARD_BATCH_LIMIT ?? 10),
     NUM_OF_CONFIRMATION: Number(process.env.KP_NUM_OF_CONFIRMATION ?? 12), // 168s with 14s block time, same as kwild
-    NUM_OF_WAIT_TOO_LONG: Number(process.env.KP_NUM_OF_WAIT_TOO_LONG ?? 270), // roughly 1 hour
-    GWEI_EXTRA_TIP: Number(process.env.KP_GWEI_EXTRA_TIP ?? 5),
-    GWEI_MAX_FEE_PER_GAS: Number(process.env.KP_GWEI_MAX_FEE_PER_GAS ?? 100), // we do not want to accidentally spend all of our money
 } as const
 
 function base64ToBytes32(s: string): string {
@@ -34,6 +30,9 @@ class EVMPoster {
     private readonly state: State
     private logger: pino.Logger
     private signer: ethers.Wallet
+    private readonly gweiExtraTip: number
+    private readonly gweiMaxFeePerGas: number
+    private readonly blocksBeforeSpeedup: number;
 
     constructor(
       rewardSafe: RewardSafe,
@@ -41,16 +40,22 @@ class EVMPoster {
       signer: ethers.Wallet,
       kwil: KwilAPI,
       ethProvider: ethers.Provider,
-      state: State = new State(), // default to memory state
       logger: pino.Logger,
+      state: State = new State(), // default to memory state
+      gweiExtraTip: number = 5,
+      gweiMaxFeePerGas: number = 100, // we do not want to accidentally spend all of our money
+      blocksBeforeSpeedup: number = 270, // 270 blocks, roughly 1 hour
     ) {
         this.kwil = kwil
-        this.state = state
         this.signer = signer
         this.eth = ethProvider
         this.safe = rewardSafe
         this.rewardContract = rewardContract
         this.logger = logger;
+        this.state = state
+        this.gweiExtraTip = gweiExtraTip
+        this.gweiMaxFeePerGas = gweiMaxFeePerGas
+        this.blocksBeforeSpeedup = blocksBeforeSpeedup;
     }
 
     // get a list of finalized rewards and handle them in batch.
@@ -131,8 +136,8 @@ class EVMPoster {
         const feeData = await this.eth.getFeeData(); // https://docs.alchemy.com/docs/maxpriorityfeepergas-vs-maxfeepergas
         // we will not operate on network pre EIP-1559, so maxFeePerGas/maxPriorityFeePerGas is not null
         const gweiMaxFeePerGas = Number(formatUnits(feeData.maxFeePerGas!, 'gwei'))
-        if (gweiMaxFeePerGas > CONSTANTS.GWEI_MAX_FEE_PER_GAS) {
-            throw new Error(`Max fee per gas is too high: ${gweiMaxFeePerGas} > ${CONSTANTS.GWEI_MAX_FEE_PER_GAS}(configured) Gwei.`)
+        if (gweiMaxFeePerGas > this.gweiMaxFeePerGas) {
+            throw new Error(`Max fee per gas is too high: ${gweiMaxFeePerGas} > ${this.gweiMaxFeePerGas}(configured) Gwei.`)
         }
 
         // execute GnosisSafe tx
@@ -210,10 +215,10 @@ class EVMPoster {
             const tx = await this.eth.getTransaction(lastRecord.result!.hash);
             // If tx is still pending, i.e. in EVM mempool
             if (tx!.blockNumber === null) {
-                if (currentBlock - lastRecord.result!.postBlock > CONSTANTS.NUM_OF_WAIT_TOO_LONG) {
+                if (currentBlock - lastRecord.result!.postBlock > this.blocksBeforeSpeedup) {
                     this.logger.info( { root: lastRecord.epoch.root, tx: lastRecord.result!.hash, waited: currentBlock - lastRecord.result!.postBlock}, 'tx has been pending for too long, prioritize it. ')
                     const lastRecordTxNonce = lastRecord.result!.accountNonce!;
-                    await this.postEpoch(lastRecord.epoch, safeMeta, CONSTANTS.GWEI_EXTRA_TIP, lastRecord.result!.accountNonce, true);
+                    await this.postEpoch(lastRecord.epoch, safeMeta, this.gweiExtraTip, lastRecord.result!.accountNonce, true);
                     return
                 }
 

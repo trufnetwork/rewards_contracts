@@ -45,6 +45,7 @@ sequenceDiagram
     end
 ```
 
+Read more on [poster service](./poster.md).
 
 
 ## Technical Overview

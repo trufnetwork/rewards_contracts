@@ -12,8 +12,11 @@ interface PosterConfig {
     "private_key": string,
     "kwil_rpc": string,
     "kwil_chain_id": string,
-    "kwil_namespace": string,
-    "sync_every": 60000, //REMOVE: milliseconds
+    "kwil_erc20_alias": string,
+    "sync_every": 60000, // milliseconds
+    "gwei_extra_tip": number,
+    "gwei_max_fee_per_gas": number,
+    "blocks_before_speedup": number,
     "state_file": string,
 }
 
@@ -76,13 +79,39 @@ function getLogger(): pino.Logger {
 function loadConfig(configPath: string): PosterConfig {
     const configJSON = fs.readFileSync(configPath, "utf-8");
     const cfg = JSON.parse(configJSON);
-    if (cfg.state_file == "") {
+    if (cfg.state_file == undefined) {
         console.log("No state file is specified.");
+        process.exit(1);
+    }
+
+    if (cfg.eth_rpc == "") {
+        console.log("No eth rpc is specified.");
+        process.exit(1);
+    }
+
+    if (cfg.private_key == "") {
+        console.log("No private key is specified.");
         process.exit(1);
     }
 
     if (cfg.log_file == "") {
         console.log("No log file is specified. Will log to stdout.");
+    }
+
+    if (cfg.sync_every == undefined) {
+        cfg.sync_every = 60000;
+    }
+
+    if (cfg.gwei_extra_tip == undefined) {
+        cfg.gwei_extra_tip = 5;
+    }
+
+    if (cfg.gwei_max_fee_per_gas == undefined) {
+        cfg.gwei_max_fee_per_gas = 100;
+    }
+
+    if (cfg.blocks_before_speedup == undefined) {
+        cfg.blocks_before_speedup = 270;
     }
 
     return cfg
@@ -99,7 +128,7 @@ async function main(): Promise<void> {
     const configPath:string = process.argv[2]
     const cfg = loadConfig(configPath);
 
-    const kwil = new KwilAPI(cfg.kwil_rpc, cfg.kwil_chain_id, cfg.kwil_namespace)
+    const kwil = new KwilAPI(cfg.kwil_rpc, cfg.kwil_chain_id, cfg.kwil_erc20_alias)
 
     const rewardInstance = await kwil.Info();
     logger.info(rewardInstance, "target erc20-bridge instance");
@@ -131,8 +160,11 @@ async function main(): Promise<void> {
         posterSigner,
         kwil,
         eth,
-        state,
         logger,
+        state,
+        cfg.gwei_extra_tip,
+        cfg.gwei_max_fee_per_gas,
+        cfg.blocks_before_speedup
     );
 
     console.log(`Starting the poster. Press Ctrl-C to quit.`);

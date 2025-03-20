@@ -21,6 +21,8 @@ If deploy to existing network, we only need to `deploy-clone`.
 
 - [overview](./docs/README.md)
 - [proxy contract](./docs/RewardDistributor.md)
+- [deploy contracts](./docs/tasks)
+- [run poster service](./docs/poster.md)
 
 ### Audits
 
