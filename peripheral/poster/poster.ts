@@ -115,7 +115,7 @@ class EVMPoster {
         return epoch;
     }
 
-    async postEpoch(epoch: FinalizedEpoch, safeMeta: SafeMeta, prioritizeTipInWei: number = 0, prioritizeNonce: number, prioritize: boolean) {
+    async postEpoch(epoch: FinalizedEpoch, safeMeta: SafeMeta, prioritizeTipInWei: number = 0, prioritizeNonce: number = 0, prioritize: boolean = false) {
         let root: string = epoch.root;
         let amount: string = epoch.total;
         // amount and nonce match
@@ -187,7 +187,7 @@ class EVMPoster {
         // if no state, then this is the first epoch posterSvc ever seen
         if (this.state.records.length === 0) {
             this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce },'First epoch, posting it')
-            await this.postEpoch(newEpoch, safeMeta, 0, 0, false);
+            await this.postEpoch(newEpoch, safeMeta);
             return
         }
 
@@ -197,7 +197,7 @@ class EVMPoster {
             this.logger.info({ root: newEpoch.root, nonce: safeMeta.nonce }, 'New epoch, post it')
             // new epoch for posterSvc; so we know last epoch is confirmed
             // We use Kwil's state not posterSvc's state to determine whether an epoch is confirmed.
-            await this.postEpoch(newEpoch , safeMeta, 0, 0, false);
+            await this.postEpoch(newEpoch, safeMeta);
         } else {
             if (lastRecord.result!.includeBlock !== 0) {
                 // this should only happens, if kwil has issues not syncing correctly;
@@ -255,7 +255,7 @@ class EVMPoster {
             // const txResp = await txReceipt?.getResult();
             this.logger.info({ tx: lastRecord.result!.hash, waited: currentBlock - lastRecord.result!.postBlock, err: revertMsg }, 'Tx failed',)
             // most likely due to the safe nonce issue. we re-post it with new safe metadata
-            await this.postEpoch(newEpoch , safeMeta, 0, 0,false);
+            await this.postEpoch(newEpoch, safeMeta);
         }
     }
 
