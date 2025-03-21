@@ -1,14 +1,14 @@
-# Kwil Reward Distribution
+# Kwil erc-20 bridge
 
 ## Work flows
 ```mermaid
 sequenceDiagram
     Actor u as User
     participant k as Kwil
-    participant s as SignerService
+    participant s as KwilWithSafeSigner
     participant p as PosterService
     participant sf as Safe(EVM)
-    participant r as Reward(EVM)
+    participant r as RewardDistributor(EVM)
 
     rect rgba(0, 255, 255, .1)
     Note right of u: User interaction
@@ -20,7 +20,7 @@ sequenceDiagram
     k -->> k: Propose an epoch reward: <br> Aggregate rewards in current epoch. <br> Generate merkle tree from all rewards.
 
     rect rgba(0,255,0,.1)
-    Note left of s: Signer service
+    Note left of s: Kwil node with Safe Signer
     s ->>+ k: Request active epochs
     k ->>- s: Rewards that can be voted/signed
     s -->> s: Sign the epoch
@@ -53,7 +53,7 @@ Read more on [poster service](./poster.md).
 ### Different roles involved
 
 - Kwil: Kwil blockchain. Learn more about Kwil [here](https://docs.kwil.com).
-- SignerService: Kwil network reward signer service. It manages individual signatures for the SAFE wallet and uploads signatures to a Kwil database (to be used be `PosterService`).
+- KwilWithSafeSigner: Kwil node with Safe Signer. It manages individual signatures for the SAFE wallet and uploads signatures to a Kwil database (to be used be `PosterService`).
 - PosterService: A service that uses transactions from `SignerService` to propose/confirm/execute transactions through Safe to this contract.
 - Safe: Safe wallet that has admin privileges to update a contract's state, through `postReward`/`updatePosterFee`.
 - Reward: Kwil Reward escrow contract.

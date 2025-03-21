@@ -13,20 +13,22 @@ Let's use walkthrough those using Base Sepolia network.
 
 For deploying contracts, we have:
 - `npx hardhat deploy-mock-token`, for testing
+- `npx hardhat deploy-safe`
 - `npx hardhat deploy-factory`
 - `npx hardhat deploy-clone`
-- `npx hardhat deploy-safe`
 
 And to use those commands, you need to configure 'PK' or 'MNEMONIC' in `.env` file.
 
 > NOTE:
 >
-> use `--help` for arguments and flags.
+> Use `--help` for arguments and flags.
 >
-> use `--network` to deploy on specific network; you need to have the network configured in hardhat.config.ts first.
+> Use `--network` to deploy on specific network; you need to have the network configured in hardhat.config.ts first.
+>
+> TO redeploy contracts to a network, you need to delete 'ignition/deployments/chain-NETWORKID' folder first.
 
 
-### 1. Deploy test token
+### 1. Deploy test token(optional)
 
 If you have an erc20 token contract already deployed, you can skip this step.
 
@@ -77,7 +79,7 @@ Safe Threshold: 1
 > NOTE: You can also do this using Safe's frontend; if you do, please don't enable 'ERC4337' module.
 
 
-### 3. Deploy the singleton&factory contracts
+### 3. Deploy the singleton & factory contracts
 
 The first step we deploy our escrow(RewardDistributor) contract is to deploy the singleton and factory contract. The 'singleton' contract is a template contract and needs to be deployed first, so 'factory' can create new 'clone' from it with different parameters.
 
@@ -91,9 +93,9 @@ Singleton contract deployed to: 0x6c006767a66C081F63C6c693189d0A5863B7397f
 Factory Contract deployed to: 0xd888D2934f127a2b3382ef64E8548676AE57a802
 ```
 
-### 4. Deploy a new clone contract
+### 4. Deploy a new clone/escrow contract
 
-> The tasks we run above will also create a directory 'ignition/chain-84532', and 'deployed_addresses.json' has all our deployed contract addresses.
+> The tasks we run above will also create a directory 'ignition/chain-84532' because we used '--network baseSepolia', and 'deployed_addresses.json' has all our deployed contract addresses.
 
 With our singleton&factory contracts deployed, we can now create a new clone(RewardDistributor) contract.
 In this demo, we want to use the KMT erc20 token as our reward token, and the Safe wallet we just deployed as our safe, so we run
@@ -117,7 +119,7 @@ Use `npx hardhat --network baseSepolia deploy-clone --help` to see all options.
 
 > NOTE: Do not use rebasing token.
 >
-> 'deployed_addresses.json' won't save 'clone' contract address, please write it down somewhere.
+> 'deployed_addresses.json' won't save the newly deployed 'escrow' contract address, please write it down somewhere.
 
 ## Verify contracts
 
