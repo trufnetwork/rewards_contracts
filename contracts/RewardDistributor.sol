@@ -44,6 +44,7 @@ contract RewardDistributor is ReentrancyGuard {
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
+    event Credit(address indexed depositor, uint256 amount);
 
     /// @notice Initialize the contract with given parameters.
     /// @dev This function should be called within the same tx this contract is created.
@@ -162,5 +163,32 @@ contract RewardDistributor is ReentrancyGuard {
 
         rewardToken.safeTransfer(recipient, amount);
         emit RewardClaimed(recipient, amount, msg.sender);
+    }
+
+    /// @notice Deposit reward tokens into the escrow contract.
+    /// @dev Anyone can deposit tokens to fund the reward pool.
+    /// @param amount The amount of tokens to deposit.
+    function deposit(uint256 amount) external {
+        require(address(rewardToken) != address(0), "Contract not initialized");
+        require(amount > 0, "Amount must be greater than 0");
+
+        rewardToken.safeTransferFrom(msg.sender, address(this), amount);
+        
+        emit Credit(msg.sender, amount);
+    }
+
+    /// @notice Deposit reward tokens from a specific address (requires approval).
+    /// @dev Allows the Safe wallet or authorized parties to deposit on behalf of others.
+    /// @param from The address to transfer tokens from (must have approved this contract).
+    /// @param amount The amount of tokens to deposit.
+    function depositFrom(address from, uint256 amount) external {
+        require(msg.sender == safe, "Not allowed");
+        require(address(rewardToken) != address(0), "Contract not initialized");
+        require(amount > 0, "Amount must be greater than 0");
+        require(from != address(0), "Invalid from address");
+
+        rewardToken.safeTransferFrom(from, address(this), amount);
+        
+        emit Credit(from, amount);
     }
 }
