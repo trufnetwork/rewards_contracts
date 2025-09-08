@@ -44,7 +44,7 @@ contract RewardDistributor is ReentrancyGuard {
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
-    event Credit(address indexed depositor, uint256 amount);
+    event Credit(address depositor, uint256 amount);
 
     /// @notice Initialize the contract with given parameters.
     /// @dev This function should be called within the same tx this contract is created.
