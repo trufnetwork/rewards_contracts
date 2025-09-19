@@ -17,7 +17,7 @@ used in the context of the erc20-bridge:
 
 ### Documentations
 
-- [overview](./docs/overview)
+- [overview](./docs/overview.md)
 - [proxy contract](./docs/RewardDistributor.md)
 - [deploy contracts](./docs/tasks.md)
 - [run poster service](./docs/poster.md)
