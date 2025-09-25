@@ -17,8 +17,6 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev 0.01 Ether is unreasonably high enough.
     uint256 public constant maxPosterFee = 1e16; // 0.01 Ether
 
-// deposit
-
     /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network. The amount of each leaf is not the same.
@@ -46,6 +44,7 @@ contract RewardDistributor is ReentrancyGuard {
     event RewardPosted(bytes32 root, uint256 amount, address poster);
     event RewardClaimed(address recipient, uint256 amount, address claimer);
     event PosterFeeUpdated(uint256 oldFee, uint256 newFee);
+    event Deposit(address recipient, uint256 amount);
 
     /// @notice Initialize the contract with given parameters.
     /// @dev This function should be called within the same tx this contract is created.
@@ -164,5 +163,18 @@ contract RewardDistributor is ReentrancyGuard {
 
         rewardToken.safeTransfer(recipient, amount);
         emit RewardClaimed(recipient, amount, msg.sender);
+    }
+
+    /// @notice Allows anyone to deposit reward tokens into this contract
+    /// @param amount The amount of tokens to deposit
+    /// @param recipient The recipient address (for tracking/logging purposes)
+    function deposit(uint256 amount, address recipient) external nonReentrant {
+        require(amount > 0, "Deposit amount must be greater than zero");
+        require(recipient != address(0), "Invalid recipient");
+
+        // Transfer tokens from the sender into the contract
+        rewardToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        emit Deposit(recipient, amount);
     }
 }
