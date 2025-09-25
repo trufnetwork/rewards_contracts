@@ -17,6 +17,8 @@ contract RewardDistributor is ReentrancyGuard {
     /// @dev 0.01 Ether is unreasonably high enough.
     uint256 public constant maxPosterFee = 1e16; // 0.01 Ether
 
+// deposit
+
     /// @notice Mapping to keep track of the poster of rewards(merkle tree root).
     /// @dev The leaf node encoding of the merkle tree is (recipient, amount, contract_address, kwil_block_hash), which
     /// ensures a unique reward hash per contract in a Kwil network. The amount of each leaf is not the same.
