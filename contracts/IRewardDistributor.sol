@@ -6,4 +6,5 @@ interface IRewardDistributor {
     function postReward(bytes32 root, uint256 amount) external;
     function updatePosterFee(uint256 newFee) external;
     function claimReward(address recipient, uint256 amount, bytes32 kwilBlockHash, bytes32 rewardRoot, bytes32[] calldata proofs) external payable;
+    function deposit(uint256 amount, address recipient) external;
 }
