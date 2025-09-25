@@ -5,40 +5,63 @@ import "hardhat/console.sol";
 import "./IRewardDistributor.sol";
 import "./RewardDistributor.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract RewardDistributorFactory is Ownable {
-    using Clones for address;
+    address public proxy;
+    address public implementation;
 
-    address public imp;
+    event ProxyCreated(address proxy);
+    event ImplementationUpgraded(address oldImplementation, address newImplementation);
 
-    event Created(address instance);
-
-    constructor(address _owner, address _imp) Ownable(_owner) {
-        imp = _imp;
+    constructor(address _owner, address _implementation) Ownable(_owner) {
+        implementation = _implementation;
     }
 
-    function create(
+    function createProxy(
         address _safe,
         uint256 _posterFee,
-        address _rewardToken,
-        bytes32 salt
+        address _rewardToken
     )
     external
     onlyOwner
     {
-        address instance = imp.cloneDeterministic(salt);
-        IRewardDistributor(instance).setup(_safe, _posterFee, _rewardToken);
-
-        console.logAddress(instance);
-        emit Created(instance);
+        require(proxy == address(0), "Proxy already created");
+        
+        bytes memory initData = abi.encodeWithSignature(
+            "setup(address,uint256,address)",
+            _safe,
+            _posterFee,
+            _rewardToken
+        );
+        
+        proxy = address(new TransparentUpgradeableProxy(
+            implementation,
+            address(this),
+            initData
+        ));
+        
+        console.logAddress(proxy);
+        emit ProxyCreated(proxy);
     }
 
-    function predicateAddr(bytes32 salt)
+    function getProxy()
     public
     view
-    returns (address predicted)
+    returns (address)
     {
-        return imp.predictDeterministicAddress(salt);
+        return proxy;
+    }
+
+    function upgradeImplementation(address _newImplementation) external onlyOwner {
+        require(proxy != address(0), "No proxy deployed");
+        require(_newImplementation != address(0), "Invalid implementation address");
+        
+        address oldImplementation = implementation;
+        implementation = _newImplementation;
+        
+        TransparentUpgradeableProxy(payable(proxy)).upgradeTo(_newImplementation);
+        
+        emit ImplementationUpgraded(oldImplementation, _newImplementation);
     }
 }
