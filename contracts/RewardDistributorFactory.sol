@@ -6,16 +6,20 @@ import "./IRewardDistributor.sol";
 import "./RewardDistributor.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/interfaces/IERC1967.sol";
 
 contract RewardDistributorFactory is Ownable {
     address public proxy;
     address public implementation;
+    ProxyAdmin public proxyAdmin;
 
     event ProxyCreated(address proxy);
     event ImplementationUpgraded(address oldImplementation, address newImplementation);
 
     constructor(address _owner, address _implementation) Ownable(_owner) {
         implementation = _implementation;
+        proxyAdmin = new ProxyAdmin(address(this));
     }
 
     function createProxy(
@@ -37,7 +41,7 @@ contract RewardDistributorFactory is Ownable {
         
         proxy = address(new TransparentUpgradeableProxy(
             implementation,
-            address(this),
+            address(proxyAdmin),
             initData
         ));
         
@@ -60,7 +64,11 @@ contract RewardDistributorFactory is Ownable {
         address oldImplementation = implementation;
         implementation = _newImplementation;
         
-        TransparentUpgradeableProxy(payable(proxy)).upgradeTo(_newImplementation);
+        proxyAdmin.upgradeAndCall(
+            ITransparentUpgradeableProxy(proxy),
+            _newImplementation,
+            ""
+        );
         
         emit ImplementationUpgraded(oldImplementation, _newImplementation);
     }

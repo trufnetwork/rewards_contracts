@@ -71,14 +71,14 @@ async function deploy(hre: HardhatRuntimeEnvironment, deployer:HardhatEthersSign
 
     const factory= await hre.ethers.getContractAt("RewardDistributorFactory", factoryAddr);
 
-    const predictAddr = await factory.predicateAddr(saltNonce);
-    const txResp = await factory.connect(deployer).create(
-        safeAddr, parseUnits(initFee, "ether"), tokenAddr, saltNonce)
+    const txResp = await factory.connect(deployer).createProxy(
+        safeAddr, parseUnits(initFee, "ether"), tokenAddr)
     // console.log("txResp", txResp);
     const txRecipt = await txResp.wait();
     // console.log("txRecipt", txRecipt);
 
-    const newClone = await hre.ethers.getContractAt("RewardDistributor", predictAddr);
+    const proxyAddr = await factory.getProxy();
+    const newClone = await hre.ethers.getContractAt("RewardDistributor", proxyAddr);
 
     console.log(">>> ")
     console.log("Escrow Contract deployed to: ", await newClone.getAddress());
