@@ -30,9 +30,9 @@ import "./tasks/deploy_safe";
 // upgradeable tasks
 import "./tasks/deploy_upgradeable_factory";
 import "./tasks/deploy_upgradeable_proxy";
-import "./tasks/upgrade_proxy";
 import "./tasks/test_upgrade";
 import "./tasks/verify_proxy";
+import "./tasks/generate_safe_upgrade_data";
 
 
 const config: HardhatUserConfig = {

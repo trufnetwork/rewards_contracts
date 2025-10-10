@@ -289,28 +289,7 @@ The proxy verification task will:
 - Create verification arguments file
 - Attempt automatic verification
 
-### Example Verification Workflow
-
-```bash
-# From your deployment logs, you should have these addresses:
-# Implementation: 0x1234...
-# Factory: 0x5678...  
-# Proxy: 0x9ABC...
-# Owner: 0xDEF0...
-
-# 1. Verify implementation
-npx hardhat verify-implementation 0x1234... --network sepolia
-
-# 2. Verify factory
-npx hardhat verify-factory 0x5678... 0xDEF0... 0x1234... --network sepolia
-
-# 3. Verify proxy (automatic)
-npx hardhat verify-proxy 0x9ABC... --network sepolia
-```
-
-### Manual Verification (Alternative)
-
-If the automated tasks fail, you can use standard Hardhat verify:
+### Manual Verification
 
 ```bash
 # Implementation (no args)
@@ -320,10 +299,69 @@ npx hardhat verify --network sepolia 0xIMPLEMENTATION_ADDRESS
 npx hardhat verify --network sepolia 0xFACTORY_ADDRESS \
   "0xOWNER_ADDRESS" "0xIMPLEMENTATION_ADDRESS"
 
-# Proxy (2 args - complex)
-npx hardhat verify --network sepolia 0xPROXY_ADDRESS \
-  --constructor-args proxy-verify-args.js
+## Safe Wallet Upgrades
+
+When your proxy is controlled by a Safe wallet, you **cannot** upgrade directly using the command line. Safe contracts require upgrades to be executed through their web interface.
+
+### Generate Safe Transaction Data
+
+Use this task to generate the transaction data needed for the Safe web interface:
+
+```bash
+npx hardhat --network sepolia generate-safe-upgrade-data \
+  0xYOUR_PROXY_ADDRESS \
+  0xNEW_IMPLEMENTATION_ADDRESS
 ```
+
+Output:
+```
+=== SAFE TRANSACTION DATA ===
+
+Proxy Address: 0xYOUR_PROXY_ADDRESS
+New Implementation: 0xNEW_IMPLEMENTATION_ADDRESS
+Additional Calldata: 0x
+
+=== COPY THESE VALUES TO SAFE WEB INTERFACE ===
+
+To Address: 0xYOUR_PROXY_ADDRESS
+ETH Value: 0
+Data (hex): 0x4f1ef286000000000000000000000000NEW_IMPLEMENTATION_ADDRESS00000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000
+
+=== INSTRUCTIONS ===
+1. Go to Safe web interface
+2. Create new transaction
+3. Paste the 'To Address' above
+4. Set ETH Value to 0
+5. Paste the 'Data (hex)' above
+6. Submit and execute the transaction
+
+This will upgrade your proxy to the new implementation!
+```
+
+### Steps for Safe Upgrade
+
+1. **Deploy new implementation** (if not done already):
+   ```bash
+   npx hardhat --network sepolia deploy-new-implementation
+   ```
+
+2. **Generate transaction data**:
+   ```bash
+   npx hardhat --network sepolia generate-safe-upgrade-data \
+     0xYOUR_PROXY_ADDRESS \
+     0xNEW_IMPLEMENTATION_ADDRESS
+   ```
+
+3. **Execute via Safe web interface**:
+   - Go to your Safe at https://app.safe.global/
+   - Create a new transaction
+   - Use the "To Address", "ETH Value", and "Data" from the task output
+   - Submit and execute the transaction
+
+4. **Verify the upgrade**:
+   - Check that the implementation slot has been updated
+   - Verify all state is preserved (safe, posterFee, rewardToken)
+   - Test basic functionality
 
 ### Troubleshooting
 
@@ -331,3 +369,5 @@ npx hardhat verify --network sepolia 0xPROXY_ADDRESS \
 - **"Constructor arguments missing"**: Use the specific verify tasks above
 - **"Invalid proxy"**: Ensure you're using an upgradeable proxy address
 - **"Network error"**: Check your RPC connection and API key
+- **"Not allowed" error**: You need to use Safe web interface for upgrades, not direct commands
+- **Safe upgrade fails**: Ensure you're using the correct Safe that owns the proxy
