@@ -7,9 +7,13 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @title RewardDistributor - Kwil Reward distribution contract.
-contract RewardDistributor is ReentrancyGuard {
+contract RewardDistributor is Initializable, UUPSUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
     /// @dev Use SafeERC20 to support non-standard ERC20 tokens like USDT.
     using SafeERC20 for IERC20;
 
@@ -47,14 +51,16 @@ contract RewardDistributor is ReentrancyGuard {
     event Deposit(address recipient, uint256 amount);
 
     /// @notice Initialize the contract with given parameters.
-    /// @dev This function should be called within the same tx this contract is created.
-    /// @dev The factory contract uses Openzeppelin cloneDeterministic(https://github.com/OpenZeppelin/openzeppelin-contracts/blob/441dc141ac99622de7e535fa75dfc74af939019c/contracts/proxy/Clones.sol#L74) to create new contract.
+    /// @dev This function replaces the constructor for upgradeable contracts.
     /// @param _safe The GnosisSafe wallet address.
     /// @param _posterFee The fee for a poster post reward on chain.
     /// @param _rewardToken The erc20 reward token address.
-    function setup(address _safe, uint256 _posterFee, address _rewardToken) external {
-        // ensure `setup` can only be called once
-        require(safe == address(0), "Already initialized");
+    function initialize(address _safe, uint256 _posterFee, address _rewardToken) external initializer {
+        // Initialize parent contracts
+        __ReentrancyGuard_init();
+        __Ownable_init(_safe);
+        __UUPSUpgradeable_init();
+        
         // valid parameters
         require(_safe != address(0), "ZERO ADDRESS");
         require(_rewardToken != address(0), "ZERO ADDRESS");
@@ -92,6 +98,12 @@ contract RewardDistributor is ReentrancyGuard {
         posterFee = newFee;
 
         emit PosterFeeUpdated(oldFee, newFee);
+    }
+
+    /// @notice Authorize upgrade - only safe wallet can upgrade
+    /// @param newImplementation The new implementation contract address
+    function _authorizeUpgrade(address newImplementation) internal override {
+        require(msg.sender == safe, "Not allowed");
     }
 
     /// @notice This allows a user on behalf of the recipient to claim reward by providing

@@ -27,6 +27,10 @@ import "./tasks/misc";
 import "./tasks/deploy_factory";
 import "./tasks/deploy_clone";
 import "./tasks/deploy_safe";
+// upgradeable tasks
+import "./tasks/deploy_upgradeable_factory";
+import "./tasks/deploy_upgradeable_proxy";
+import "./tasks/upgrade_proxy";
 
 
 const config: HardhatUserConfig = {
