@@ -53,7 +53,7 @@ async function deployUpgradeableFactory(hre: HardhatRuntimeEnvironment, deployer
         factory: factoryAddress,
         deployer: deployer.address,
         network: hre.network.name,
-        chainId: chainId,
+        chainId: hre.network.config.chainId,
         deployedAt: new Date().toISOString()
     };
     
