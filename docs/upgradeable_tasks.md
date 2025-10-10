@@ -16,7 +16,6 @@ For deploying upgradeable contracts, we have:
 - `npx hardhat deploy-upgradeable-factory` - Deploy implementation and factory
 - `npx hardhat deploy-upgradeable-proxy` - Deploy an upgradeable proxy
 - `npx hardhat deploy-new-implementation` - Deploy new implementation only
-- `npx hardhat upgrade-proxy` - Upgrade existing proxy
 
 You need to configure `PK` or `MNEMONIC` in `.env` file for deployment.
 
@@ -106,9 +105,9 @@ With your implementation and factory deployed, create an upgradeable proxy:
 
 ```bash
 npx hardhat --network sepolia deploy-upgradeable-proxy \
-  --factory 0xd888D2934f127a2b3382ef64E8548676AE57a802 \
-  0xB712073aaC7f6d4178c1289Cf97aE3195a48bA4a \
-  0xdE6A3f576d38F5A31CDD59F798606d8F523270d8
+  --factory 0xFACTORY_ADDRESS \
+  0xSAFE_ADDRESS \
+  0xTOKEN_ADDRESS
 ```
 
 Where:
@@ -143,161 +142,6 @@ IMPORTANT: This is an upgradeable proxy!
 - Only the Safe wallet can authorize upgrades
 - Use 'upgrade-proxy' task to upgrade implementation
 ```
-
-## Upgrading Contracts
-
-### Understanding the Upgrade Process
-
-There are **two separate tasks** for upgrading contracts:
-
-| Task | Purpose | When to Use |
-|------|---------|-------------|
-| `deploy-new-implementation` | **Just deploys** a new implementation contract | When you want to deploy the new code but **not upgrade yet** |
-| `upgrade-proxy` | **Actually upgrades** an existing proxy to point to new implementation | When you want to **activate** the new code on a proxy |
-
-**Two-Step Process (Recommended):**
-```bash
-# Step 1: Deploy new implementation (review, test, verify)
-npx hardhat --network sepolia deploy-new-implementation
-
-# Step 2: Upgrade proxy to use new implementation (goes live)
-npx hardhat --network sepolia upgrade-proxy <PROXY> --implementation <NEW_IMPL>
-```
-
-**One-Step Process (Quick):**
-```bash
-# Deploys new implementation AND upgrades proxy in one command
-npx hardhat --network sepolia upgrade-proxy <PROXY>
-```
-
-### 5. Deploy New Implementation (Step 1)
-
-When you want to upgrade, first deploy a new implementation:
-
-```bash
-npx hardhat --network sepolia deploy-new-implementation
-```
-
-Output:
-```
-Current network: sepolia/11155111
-Current height: 5234800
-Deployer address: 0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7
->>> 
-Deploying new RewardDistributor implementation...
-New implementation deployed to: 0x1234567890123456789012345678901234567890
->>> 
-To upgrade your proxies, use:
-npx hardhat upgrade-proxy <PROXY_ADDRESS> --implementation 0x1234567890123456789012345678901234567890 --network <NETWORK>
-```
-
-**Why use this step separately?**
-- ✅ **Review**: Inspect the new implementation before upgrading
-- ✅ **Test**: Deploy to testnet first, verify functionality  
-- ✅ **Verify**: Submit to Etherscan for public verification
-- ✅ **Safety**: Separate deployment from activation
-
-### 6. Upgrade Existing Proxy (Step 2)
-
-Upgrade your proxy to use the new implementation:
-
-```bash
-npx hardhat --network sepolia upgrade-proxy \
-  0xA8bE7110Ad15582f8394aB56C299c7bf297e7208 \
-  --implementation 0x1234567890123456789012345678901234567890
-```
-
-Or let it deploy a new implementation automatically:
-
-```bash
-npx hardhat --network sepolia upgrade-proxy \
-  0xA8bE7110Ad15582f8394aB56C299c7bf297e7208
-```
-
-Output:
-```
-Current network: sepolia/11155111
-Current height: 5234850
->>> 
-Upgrader address: 0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7
-Proxy Address: 0xA8bE7110Ad15582f8394aB56C299c7bf297e7208
-New Implementation: 0x1234567890123456789012345678901234567890
-Current Implementation: 0x6c006767a66c081f63c6c693189d0a5863b7397f
-Upgrading implementation...
-Upgrade transaction hash: 0x5678...
-Upgrade confirmed in block: 23370101
-New Implementation: 0x1234567890123456789012345678901234567890
->>> 
-✅ Upgrade completed successfully!
-- Proxy address remains the same
-- All state data preserved  
-- New implementation logic active
-```
-
-## Key Differences from Clone Pattern
-
-| Feature | Clone Pattern | Upgradeable Pattern |
-|---------|---------------|-------------------|
-| **Deployment** | Cheap minimal proxies | More expensive full proxies |
-| **Address** | New address per clone | Same address across upgrades |
-| **Upgrades** | ❌ Not possible | ✅ Authorized upgrades |
-| **State** | ❌ Lost on new deployment | ✅ Preserved across upgrades |
-| **Gas Cost** | Lower | Higher |
-| **Flexibility** | Limited | High |
-
-## Security Notes
-
-- **Only Safe wallet can upgrade**: Upgrades require authorization from the Safe wallet set during initialization
-- **State preservation**: All mappings, balances, and settings remain intact during upgrades
-- **Implementation validation**: New implementations are validated before upgrade
-- **Event tracking**: All upgrades emit events for transparency
-
-## Verification
-
-For upgradeable contracts, you need to verify **three separate contracts**: implementation, factory, and proxy.
-
-### Prerequisites
-
-Configure `ETHERSCAN_API_KEY` in your `.env` file:
-```bash
-ETHERSCAN_API_KEY=your_api_key_here
-```
-
-### Verification Commands
-
-We provide dedicated tasks for each contract type:
-
-#### 1. Verify Implementation
-```bash
-npx hardhat verify-implementation 0xIMPLEMENTATION_ADDRESS --network sepolia
-```
-
-#### 2. Verify Factory
-```bash
-npx hardhat verify-factory 0xFACTORY_ADDRESS 0xOWNER_ADDRESS 0xIMPLEMENTATION_ADDRESS --network sepolia
-```
-
-#### 3. Verify Proxy
-```bash
-npx hardhat verify-proxy 0xPROXY_ADDRESS --network sepolia
-```
-
-The proxy verification task will:
-- Automatically read the proxy's state (safe, posterFee, rewardToken)
-- Get the implementation address from storage
-- Encode the initialization data
-- Create verification arguments file
-- Attempt automatic verification
-
-### Manual Verification
-
-```bash
-# Implementation (no args)
-npx hardhat verify --network sepolia 0xIMPLEMENTATION_ADDRESS
-
-# Factory (2 args)
-npx hardhat verify --network sepolia 0xFACTORY_ADDRESS \
-  "0xOWNER_ADDRESS" "0xIMPLEMENTATION_ADDRESS"
 
 ## Safe Wallet Upgrades
 
@@ -363,11 +207,42 @@ This will upgrade your proxy to the new implementation!
    - Verify all state is preserved (safe, posterFee, rewardToken)
    - Test basic functionality
 
-### Troubleshooting
 
-- **"Already Verified"**: Contract is already verified ✅
-- **"Constructor arguments missing"**: Use the specific verify tasks above
-- **"Invalid proxy"**: Ensure you're using an upgradeable proxy address
-- **"Network error"**: Check your RPC connection and API key
-- **"Not allowed" error**: You need to use Safe web interface for upgrades, not direct commands
-- **Safe upgrade fails**: Ensure you're using the correct Safe that owns the proxy
+## Key Differences from Clone Pattern
+
+| Feature | Clone Pattern | Upgradeable Pattern |
+|---------|---------------|-------------------|
+| **Deployment** | Cheap minimal proxies | More expensive full proxies |
+| **Address** | New address per clone | Same address across upgrades |
+| **Upgrades** | ❌ Not possible | ✅ Authorized upgrades |
+| **State** | ❌ Lost on new deployment | ✅ Preserved across upgrades |
+| **Gas Cost** | Lower | Higher |
+| **Flexibility** | Limited | High |
+
+## Security Notes
+
+- **Only Safe wallet can upgrade**: Upgrades require authorization from the Safe wallet set during initialization
+- **State preservation**: All mappings, balances, and settings remain intact during upgrades
+- **Implementation validation**: New implementations are validated before upgrade
+- **Event tracking**: All upgrades emit events for transparency
+
+## Verification
+
+For upgradeable contracts, you need to verify **three separate contracts**: implementation, factory, and proxy.
+
+### Prerequisites
+
+Configure `ETHERSCAN_API_KEY` in your `.env` file:
+```bash
+ETHERSCAN_API_KEY=your_api_key_here
+```
+
+### Verification Commands
+
+```bash
+# Implementation (no args)
+npx hardhat verify --network sepolia 0xIMPLEMENTATION_ADDRESS
+
+# Factory (2 args)
+npx hardhat verify --network sepolia 0xFACTORY_ADDRESS \
+  "0xOWNER_ADDRESS" "0xIMPLEMENTATION_ADDRESS"
