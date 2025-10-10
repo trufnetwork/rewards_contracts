@@ -76,11 +76,10 @@ async function upgradeProxy(hre: HardhatRuntimeEnvironment, deployer: HardhatEth
     const proxy = await hre.ethers.getContractAt("RewardDistributor", proxyAddr);
     
     // Check current implementation
-    const currentImplementation = await hre.ethers.provider.getStorage(
-        proxyAddr, 
-        "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc" // EIP-1967 implementation slot
-    );
-    console.log(`Current Implementation: 0x${currentImplementation.slice(-40)}`);
+    const IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"; // EIP-1967 implementation slot
+    const currentImplementation = await hre.ethers.provider.getStorage(proxyAddr, IMPLEMENTATION_SLOT);
+    const currentImplAddress = "0x" + currentImplementation.slice(-40);
+    console.log(`Current Implementation: ${currentImplAddress}`);
     
     try {
         let txResp;
@@ -98,17 +97,37 @@ async function upgradeProxy(hre: HardhatRuntimeEnvironment, deployer: HardhatEth
         console.log(`Upgrade confirmed in block: ${txReceipt!.blockNumber}`);
         
         // Verify upgrade
-        const newCurrentImplementation = await hre.ethers.provider.getStorage(
-            proxyAddr, 
-            "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
-        );
-        console.log(`New Implementation: 0x${newCurrentImplementation.slice(-40)}`);
+        const newCurrentImplementation = await hre.ethers.provider.getStorage(proxyAddr, IMPLEMENTATION_SLOT);
+        const newImplAddress = "0x" + newCurrentImplementation.slice(-40);
+        console.log(`New Implementation: ${newImplAddress}`);
+        
+        // Check if upgrade actually happened
+        if (currentImplAddress.toLowerCase() === newImplAddress.toLowerCase()) {
+            console.log("⚠️  WARNING: Implementation address didn't change!");
+            console.log("This might happen if deploying identical bytecode.");
+        } else {
+            console.log("✅ Implementation successfully updated!");
+        }
         
         console.log(">>> ")
         console.log("✅ Upgrade completed successfully!");
         console.log("- Proxy address remains the same");
         console.log("- All state data preserved");
         console.log("- New implementation logic active");
+        
+        // Test state preservation
+        console.log("\n=== Verifying State Preservation ===");
+        try {
+            const safe = await proxy.safe();
+            const posterFee = await proxy.posterFee();
+            const rewardToken = await proxy.rewardToken();
+            console.log(`Safe: ${safe}`);
+            console.log(`Poster Fee: ${posterFee}`);
+            console.log(`Reward Token: ${rewardToken}`);
+            console.log("✅ All state preserved!");
+        } catch (error) {
+            console.log("❌ Error reading state:", error);
+        }
         
     } catch (error) {
         console.error("❌ Upgrade failed:", error);

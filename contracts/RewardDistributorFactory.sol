@@ -44,24 +44,27 @@ contract RewardDistributorFactory is Ownable {
         emit Created(instance);
     }
 
-    function predicateAddr(bytes32 salt)
+    function predicateAddr(
+        address _safe,
+        uint256 _posterFee,
+        address _rewardToken,
+        bytes32 salt
+    )
     public
     view
     returns (address predicted)
     {
-        // Calculate CREATE2 address for ERC1967Proxy
-        // NOTE: placeholder params used only for address prediction
+        // Calculate CREATE2 address for ERC1967Proxy using REAL parameters
+        bytes memory initData = abi.encodeWithSelector(
+            RewardDistributor.initialize.selector,
+            _safe,
+            _posterFee,
+            _rewardToken
+        );
+        
         bytes memory bytecode = abi.encodePacked(
             type(ERC1967Proxy).creationCode,
-            abi.encode(
-                implementation,
-                abi.encodeWithSelector(
-                    RewardDistributor.initialize.selector,
-                    address(0), // placeholder - actual values will be provided at deploy
-                    0,           // placeholder - actual values will be provided at deploy
-                    address(0)   // placeholder - actual values will be provided at deploy
-                )
-            )
+            abi.encode(implementation, initData)
         );
         
         return address(uint160(uint256(keccak256(abi.encodePacked(

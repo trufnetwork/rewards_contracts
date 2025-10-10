@@ -56,8 +56,8 @@ async function deployProxy(hre: HardhatRuntimeEnvironment, deployer: HardhatEthe
     const token = await hre.ethers.getContractAt("ERC20", tokenAddr);
     const factory = await hre.ethers.getContractAt("RewardDistributorFactory", factoryAddr);
 
-    // Predict proxy address
-    const predictAddr = await factory.predicateAddr(saltNonce);
+    // Predict proxy address using REAL parameters
+    const predictAddr = await factory.predicateAddr(safeAddr, parseUnits(initFee, "ether"), tokenAddr, saltNonce);
     console.log(`Predicted Proxy Address: ${predictAddr}`);
 
     // Deploy proxy
@@ -68,8 +68,36 @@ async function deployProxy(hre: HardhatRuntimeEnvironment, deployer: HardhatEthe
     const txReceipt = await txResp.wait();
     console.log(`Transaction confirmed in block: ${txReceipt!.blockNumber}`);
 
-    // Get the deployed proxy contract
-    const proxy = await hre.ethers.getContractAt("RewardDistributor", predictAddr);
+    // Get the ACTUAL deployed address from the Created event
+    const createdEvent = txReceipt!.logs.find(log => {
+        try {
+            const parsed = factory.interface.parseLog({topics: log.topics as string[], data: log.data});
+            return parsed?.name === 'Created';
+        } catch {
+            return false;
+        }
+    });
+    
+    if (!createdEvent) {
+        throw new Error("Could not find Created event in transaction receipt");
+    }
+    
+    const parsedEvent = factory.interface.parseLog({
+        topics: createdEvent.topics as string[], 
+        data: createdEvent.data
+    });
+    const actualProxyAddress = parsedEvent!.args[0];
+    
+    console.log(`ACTUAL Proxy Address: ${actualProxyAddress}`);
+    if (actualProxyAddress.toLowerCase() === predictAddr.toLowerCase()) {
+        console.log("✅ Predicted address matches actual deployed address!");
+    } else {
+        console.log("⚠️  WARNING: Predicted address differs from actual deployed address!");
+        console.log("This indicates an issue with the predicateAddr function.");
+    }
+
+    // Get the deployed proxy contract using ACTUAL address
+    const proxy = await hre.ethers.getContractAt("RewardDistributor", actualProxyAddress);
 
     console.log(">>> ")
     console.log("Upgradeable Proxy deployed to: ", await proxy.getAddress());

@@ -254,44 +254,80 @@ New Implementation: 0x1234567890123456789012345678901234567890
 
 ## Verification
 
-Hardhat provides a builtin task to verify contracts, you'll need to either config 'ETHERSCAN_API_KEY' in `.env` file, or add 'customChains' in `hardhat.config.ts` file.
+For upgradeable contracts, you need to verify **three separate contracts**: implementation, factory, and proxy.
 
-Once you have everything configured:
+### Prerequisites
+
+Configure `ETHERSCAN_API_KEY` in your `.env` file:
+```bash
+ETHERSCAN_API_KEY=your_api_key_here
+```
+
+### Verification Commands
+
+We provide dedicated tasks for each contract type:
+
+#### 1. Verify Implementation
+```bash
+npx hardhat verify-implementation 0xIMPLEMENTATION_ADDRESS --network sepolia
+```
+
+#### 2. Verify Factory
+```bash
+npx hardhat verify-factory 0xFACTORY_ADDRESS 0xOWNER_ADDRESS 0xIMPLEMENTATION_ADDRESS --network sepolia
+```
+
+#### 3. Verify Proxy
+```bash
+npx hardhat verify-proxy 0xPROXY_ADDRESS --network sepolia
+```
+
+The proxy verification task will:
+- Automatically read the proxy's state (safe, posterFee, rewardToken)
+- Get the implementation address from storage
+- Encode the initialization data
+- Create verification arguments file
+- Attempt automatic verification
+
+### Example Verification Workflow
 
 ```bash
-npx hardhat --network sepolia verify
+# From your deployment logs, you should have these addresses:
+# Implementation: 0x1234...
+# Factory: 0x5678...  
+# Proxy: 0x9ABC...
+# Owner: 0xDEF0...
+
+# 1. Verify implementation
+npx hardhat verify-implementation 0x1234... --network sepolia
+
+# 2. Verify factory
+npx hardhat verify-factory 0x5678... 0xDEF0... 0x1234... --network sepolia
+
+# 3. Verify proxy (automatic)
+npx hardhat verify-proxy 0x9ABC... --network sepolia
 ```
 
-## Utility Tasks
+### Manual Verification (Alternative)
 
-### Check escrow contract info
+If the automated tasks fail, you can use standard Hardhat verify:
 
-`npx hardhat --network sepolia show-escrow 0xA8bE7110Ad15582f8394aB56C299c7bf297e7208`, will give you:
-```
-Current network: sepolia/11155111
-Current height: 5235000
-PosterFee: 0.0001 eth
-RewardToken: 0xdE6A3f576d38F5A31CDD59F798606d8F523270d8
-RewardToken Name: KwilMockToken
-RewardToken Symbol: KMT
-RewardToken Decimals: 18
-Safe Address: 0xB712073aaC7f6d4178c1289Cf97aE3195a48bA4a
-Is Safe deployed: true
-Safe Owners: [
-  '0x640568976c2CDc8789E44B39369D5Bc44B1e6Ad7',
-  '0x9AB44C3Ac7D26b15A96cE35a03066b88CFbD8b8B'
-]
-Safe Threshold: 1
+```bash
+# Implementation (no args)
+npx hardhat verify --network sepolia 0xIMPLEMENTATION_ADDRESS
+
+# Factory (2 args)
+npx hardhat verify --network sepolia 0xFACTORY_ADDRESS \
+  "0xOWNER_ADDRESS" "0xIMPLEMENTATION_ADDRESS"
+
+# Proxy (2 args - complex)
+npx hardhat verify --network sepolia 0xPROXY_ADDRESS \
+  --constructor-args proxy-verify-args.js
 ```
 
-### Transfer erc20 token
+### Troubleshooting
 
-`npx hardhat --network sepolia transfer-token --help`
-
-### Claim rewards
-
-Once you have some rewards on Kwil network, you can run `kwil-cli call-action list_wallet_rewards -n rewards text:YOUR_WALLET_ADDR bool:false` to get the parameters you need to claim the rewards.
-
-The parameters you get can be used on this command `npx hardhat --network sepolia claim-rewards --help`.
-
-> **NOTE**: The proxy address remains constant across all upgrades, so you can use the same address for all operations.
+- **"Already Verified"**: Contract is already verified ✅
+- **"Constructor arguments missing"**: Use the specific verify tasks above
+- **"Invalid proxy"**: Ensure you're using an upgradeable proxy address
+- **"Network error"**: Check your RPC connection and API key
