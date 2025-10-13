@@ -18,8 +18,6 @@ contract RewardDistributor is Initializable, UUPSUpgradeable, ReentrancyGuardUpg
     constructor() {
         _disableInitializers();
     }
-    // ... rest of your contract ...
-}
     /// @dev Use SafeERC20 to support non-standard ERC20 tokens like USDT.
     using SafeERC20 for IERC20;
 
