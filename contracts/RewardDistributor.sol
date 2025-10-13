@@ -14,6 +14,12 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 /// @title RewardDistributor - Kwil Reward distribution contract.
 contract RewardDistributor is Initializable, UUPSUpgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+    // ... rest of your contract ...
+}
     /// @dev Use SafeERC20 to support non-standard ERC20 tokens like USDT.
     using SafeERC20 for IERC20;
 
