@@ -28,7 +28,11 @@ task("generate-safe-upgrade-data",
             
             // upgradeToAndCall function signature: upgradeToAndCall(address,bytes)
             const RewardDistributor = await hre.ethers.getContractFactory("RewardDistributor");
-            const functionSelector = RewardDistributor.interface.getFunction("upgradeToAndCall")?.selector;
+            const upgradeFunc = RewardDistributor.interface.getFunction("upgradeToAndCall");
+            if (!upgradeFunc) {
+                throw new Error("upgradeToAndCall function not found in RewardDistributor interface");
+            }
+            const functionSelector = upgradeFunc.selector;
             const encodedParams = hre.ethers.AbiCoder.defaultAbiCoder().encode(
                 ["address", "bytes"], 
                 [newImplementation, calldata]
