@@ -21,6 +21,7 @@ used in the context of the erc20-bridge:
 - [proxy contract](./docs/RewardDistributor.md)
 - [deploy contracts](./docs/tasks.md)
 - [run poster service](./docs/poster.md)
+- [upgradeable contracts](./docs/upgradeable_tasks.md)
 
 ### Audits
 
