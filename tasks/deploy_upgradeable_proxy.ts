@@ -110,5 +110,5 @@ async function deployProxy(hre: HardhatRuntimeEnvironment, deployer: HardhatEthe
     console.log("IMPORTANT: This is an upgradeable proxy!");
     console.log("- Proxy address will remain the same across upgrades");
     console.log("- Only the Safe wallet can authorize upgrades");
-    console.log("- Use 'upgrade-proxy' task to upgrade implementation");
+    console.log("- For Safe-admin proxies, use 'generate-safe-upgrade-data' and execute via the Safe web UI");
 }

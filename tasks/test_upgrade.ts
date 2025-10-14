@@ -33,7 +33,7 @@ const IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a92
 
 async function getCurrentImplementation(hre: HardhatRuntimeEnvironment, proxyAddress: string): Promise<string> {
     const implementationStorage = await hre.ethers.provider.getStorage(proxyAddress, IMPLEMENTATION_SLOT);
-    return "0x" + implementationStorage.slice(-40);
+    return hre.ethers.getAddress("0x" + implementationStorage.slice(-40));
 }
 
 async function testUpgrade(hre: HardhatRuntimeEnvironment, deployer: HardhatEthersSigner, proxyAddress: string) {

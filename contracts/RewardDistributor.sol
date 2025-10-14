@@ -108,6 +108,8 @@ contract RewardDistributor is Initializable, UUPSUpgradeable, ReentrancyGuardUpg
     /// @param newImplementation The new implementation contract address
     function _authorizeUpgrade(address newImplementation) internal override {
         require(msg.sender == safe, "Not allowed");
+        require(newImplementation != address(0), "Invalid implementation address");
+        require(newImplementation.code.length > 0, "Implementation must be a contract");
     }
 
     /// @notice This allows a user on behalf of the recipient to claim reward by providing

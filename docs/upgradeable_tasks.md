@@ -140,7 +140,7 @@ Contract's initial token balance: 0
 IMPORTANT: This is an upgradeable proxy!
 - Proxy address will remain the same across upgrades
 - Only the Safe wallet can authorize upgrades
-- Use 'upgrade-proxy' task to upgrade implementation
+- For Safe-admin proxies, use 'generate-safe-upgrade-data' and execute via the Safe web UI
 ```
 
 ## Safe Wallet Upgrades
@@ -197,7 +197,7 @@ This will upgrade your proxy to the new implementation!
    ```
 
 3. **Execute via Safe web interface**:
-   - Go to your Safe at https://app.safe.global/
+   - Go to your Safe at [https://app.safe.global/](https://app.safe.global/)
    - Create a new transaction
    - Use the "To Address", "ETH Value", and "Data" from the task output
    - Submit and execute the transaction

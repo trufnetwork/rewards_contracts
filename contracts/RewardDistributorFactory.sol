@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "hardhat/console.sol";
 import "./IRewardDistributor.sol";
 import "./RewardDistributor.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 contract RewardDistributorFactory is Ownable {
     address public implementation;
@@ -14,6 +14,8 @@ contract RewardDistributorFactory is Ownable {
     event ImplementationUpdated(address oldImpl, address newImpl);
 
     constructor(address _owner, address _implementation) Ownable(_owner) {
+        require(_implementation != address(0), "Invalid implementation");
+
         implementation = _implementation;
     }
 
@@ -40,7 +42,6 @@ contract RewardDistributorFactory is Ownable {
             initData
         ));
 
-        console.logAddress(instance);
         emit Created(instance);
     }
 
@@ -79,7 +80,8 @@ contract RewardDistributorFactory is Ownable {
     /// @param _newImplementation New implementation contract address
     function updateImplementation(address _newImplementation) external onlyOwner {
         require(_newImplementation != address(0), "Invalid implementation");
-        
+        require(_newImplementation != implementation, "Same implementation");
+
         address oldImpl = implementation;
         implementation = _newImplementation;
         

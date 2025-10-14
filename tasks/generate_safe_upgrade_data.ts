@@ -10,6 +10,14 @@ task("generate-safe-upgrade-data",
             const proxyAddress = taskArgs.proxy;
             const newImplementation = taskArgs.implementation;
             const calldata = taskArgs.data;
+
+            // Validate addresses
+            if (!hre.ethers.isAddress(proxyAddress)) {
+                throw new Error(`Invalid proxy address: ${proxyAddress}`);
+            }
+            if (!hre.ethers.isAddress(newImplementation)) {
+                throw new Error(`Invalid implementation address: ${newImplementation}`);
+            }
             
             console.log("=== SAFE TRANSACTION DATA ===");
             console.log("");
@@ -19,7 +27,8 @@ task("generate-safe-upgrade-data",
             console.log("");
             
             // upgradeToAndCall function signature: upgradeToAndCall(address,bytes)
-            const functionSelector = "0x4f1ef286";
+            const RewardDistributor = await hre.ethers.getContractFactory("RewardDistributor");
+            const functionSelector = RewardDistributor.interface.getFunction("upgradeToAndCall")?.selector;
             const encodedParams = hre.ethers.AbiCoder.defaultAbiCoder().encode(
                 ["address", "bytes"], 
                 [newImplementation, calldata]
