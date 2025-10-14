@@ -31,7 +31,7 @@ import "./tasks/deploy_safe";
 import "./tasks/deploy_upgradeable_factory";
 import "./tasks/deploy_upgradeable_proxy";
 import "./tasks/deploy_new_implementation";
-import "./tasks/test_upgrade";
+import "./tasks/check_implementation";
 import "./tasks/generate_safe_upgrade_data";
 
 

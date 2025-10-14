@@ -49,5 +49,5 @@ async function deployNewImplementation(hre: HardhatRuntimeEnvironment, deployer:
     console.log("Next steps:");
     console.log("1. Use this implementation address with 'generate-safe-upgrade-data'");
     console.log("2. Execute the upgrade transaction through your Safe wallet");
-    console.log("3. Verify the upgrade with 'test-upgrade' or 'check-implementation'");
+    console.log("3. Verify the upgrade with 'check-implementation'");
 }
