@@ -1,4 +1,4 @@
-import type { HardhatUserConfig, HttpNetworkUserConfig } from "hardhat/types";
+import type { HardhatUserConfig, HttpNetworkUserConfig, HttpNetworkAccountsUserConfig } from "hardhat/types";
 
 import "@nomicfoundation/hardhat-toolbox";
 
@@ -12,14 +12,11 @@ const { SEPOLIA_RPC, BASE_SEPOLIA_RPC, MAINNET_RPC, ETHERSCAN_API_KEY, PK, MNEMO
 
 const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk" // same as hardhat's default mnemonic
 
-const sharedNetworkConfig: HttpNetworkUserConfig = {};
-if (PK) {
-    (sharedNetworkConfig as any).accounts = [PK];
-} else {
-    (sharedNetworkConfig as any).accounts = {
-        mnemonic: MNEMONIC || DEFAULT_MNEMONIC,
-    };
-}
+const accounts: HttpNetworkAccountsUserConfig = PK 
+    ? [PK] 
+    : { mnemonic: MNEMONIC || DEFAULT_MNEMONIC };
+
+const sharedNetworkConfig: HttpNetworkUserConfig = { accounts };
 
 
 // import custom tasks
@@ -64,7 +61,7 @@ const config: HardhatUserConfig = {
         },
         mainnet: {
             ...sharedNetworkConfig,
-            url: MAINNET_RPC,
+            url: MAINNET_RPC || "https://eth.llamarpc.com",
             chainId: 1
         },
     },
@@ -75,7 +72,7 @@ const config: HardhatUserConfig = {
               network: "mainnet",
               chainId: 1,
               urls: {
-                  apiURL: "https://api.etherscan.io/v2/api?chainid=1",
+                  apiURL: "https://api.etherscan.io/v2/api?chainId=1",
                   browserURL: "https://etherscan.io",
               }
           },
@@ -83,7 +80,7 @@ const config: HardhatUserConfig = {
               network: "sepolia", 
               chainId: 11155111,
               urls: {
-                  apiURL: "https://api.etherscan.io/v2/api?chainid=11155111",
+                  apiURL: "https://api.etherscan.io/v2/api?chainId=11155111",
                   browserURL: "https://sepolia.etherscan.io",
               }
           },

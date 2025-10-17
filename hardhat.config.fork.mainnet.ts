@@ -1,4 +1,4 @@
-import type { HardhatUserConfig } from "hardhat/types";
+import type { HardhatUserConfig, HttpNetworkUserConfig, HttpNetworkAccountsUserConfig } from "hardhat/types";
 import "@nomicfoundation/hardhat-toolbox";
 import dotenv from 'dotenv';
 
@@ -7,14 +7,11 @@ const { MAINNET_RPC, PK, MNEMONIC, ETHERSCAN_API_KEY } = process.env;
 
 const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
 
-const sharedNetworkConfig: any = {};
-if (PK) {
-    sharedNetworkConfig.accounts = [PK];
-} else {
-    sharedNetworkConfig.accounts = {
-        mnemonic: MNEMONIC || DEFAULT_MNEMONIC,
-    };
-}
+const accounts: HttpNetworkAccountsUserConfig = PK 
+    ? [PK] 
+    : { mnemonic: MNEMONIC || DEFAULT_MNEMONIC };
+
+const sharedNetworkConfig: HttpNetworkUserConfig = { accounts };
 
 // Import custom tasks
 import "./tasks/misc";
@@ -56,8 +53,7 @@ const config: HardhatUserConfig = {
         mainnet: {
             ...sharedNetworkConfig,
             url: MAINNET_RPC || "https://eth.llamarpc.com",
-            chainId: 1,
-            gas: 30000000, // 30M gas limit
+            chainId: 1
         },
     },
     etherscan: {
@@ -67,7 +63,7 @@ const config: HardhatUserConfig = {
               network: "mainnet",
               chainId: 1,
               urls: {
-                  apiURL: "https://api.etherscan.io/v2/api?chainid=1",
+                  apiURL: "https://api.etherscan.io/v2/api?chainId=1",
                   browserURL: "https://etherscan.io",
               }
           }
