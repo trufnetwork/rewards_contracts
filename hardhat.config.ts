@@ -69,22 +69,6 @@ const config: HardhatUserConfig = {
       apiKey: ETHERSCAN_API_KEY,
       customChains: [
           {
-              network: "mainnet",
-              chainId: 1,
-              urls: {
-                  apiURL: "https://api.etherscan.io/v2/api?chainId=1",
-                  browserURL: "https://etherscan.io",
-              }
-          },
-          {
-              network: "sepolia", 
-              chainId: 11155111,
-              urls: {
-                  apiURL: "https://api.etherscan.io/v2/api?chainId=11155111",
-                  browserURL: "https://sepolia.etherscan.io",
-              }
-          },
-          {
               network: "base-sepolia",
               chainId: 84532,
               urls: {

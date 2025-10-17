@@ -42,14 +42,10 @@ const config: HardhatUserConfig = {
                 url: MAINNET_RPC || "https://eth.llamarpc.com",
                 // blockNumber: 18500000, // Optional: pin to specific block
             },
-            chainId: 1,
-            gas: 30000000, // 30M gas limit
-            blockGasLimit: 30000000,
-            gasPrice: 20000000000, // 20 gwei
+            chainId: 1
         },
         localhost: {
-            url: "http://127.0.0.1:8545",
-            gas: 10000000,
+            url: "http://127.0.0.1:8545"
         },
         mainnet: {
             ...sharedNetworkConfig,
