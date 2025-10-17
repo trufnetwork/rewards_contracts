@@ -14,9 +14,9 @@ const DEFAULT_MNEMONIC = "test test test test test test test test test test test
 
 const sharedNetworkConfig: HttpNetworkUserConfig = {};
 if (PK) {
-    sharedNetworkConfig.accounts = [PK];
+    (sharedNetworkConfig as any).accounts = [PK];
 } else {
-    sharedNetworkConfig.accounts = {
+    (sharedNetworkConfig as any).accounts = {
         mnemonic: MNEMONIC || DEFAULT_MNEMONIC,
     };
 }
@@ -54,7 +54,7 @@ const config: HardhatUserConfig = {
         },
         sepolia: {
             ...sharedNetworkConfig,
-            url: SEPOLIA_RPC,
+            url: SEPOLIA_RPC || "https://ethereum-sepolia-rpc.publicnode.com",
             chainId: 11155111,
         },
         baseSepolia: {
@@ -65,12 +65,28 @@ const config: HardhatUserConfig = {
         mainnet: {
             ...sharedNetworkConfig,
             url: MAINNET_RPC,
-            chainId: 1,
+            chainId: 1
         },
     },
   etherscan: {
       apiKey: ETHERSCAN_API_KEY,
       customChains: [
+          {
+              network: "mainnet",
+              chainId: 1,
+              urls: {
+                  apiURL: "https://api.etherscan.io/v2/api?chainid=1",
+                  browserURL: "https://etherscan.io",
+              }
+          },
+          {
+              network: "sepolia", 
+              chainId: 11155111,
+              urls: {
+                  apiURL: "https://api.etherscan.io/v2/api?chainid=11155111",
+                  browserURL: "https://sepolia.etherscan.io",
+              }
+          },
           {
               network: "base-sepolia",
               chainId: 84532,

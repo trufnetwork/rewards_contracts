@@ -28,7 +28,9 @@ async function deployUpgradeableFactory(hre: HardhatRuntimeEnvironment, deployer
     try {
       // 1. Deploy implementation contract
       const RewardDistributor = await hre.ethers.getContractFactory("RewardDistributor");
-      const implementation = await RewardDistributor.deploy();
+      const implementation = await RewardDistributor.deploy({
+        gasLimit: 15000000 // 15M gas limit
+      });
       await implementation.waitForDeployment();
       const implAddress = await implementation.getAddress();
       console.log(`Implementation contract deployed to: ${implAddress}`);
@@ -42,7 +44,9 @@ async function deployUpgradeableFactory(hre: HardhatRuntimeEnvironment, deployer
       // 2. Deploy factory contract  
       console.log("Deploying RewardDistributorFactory...");
       const Factory = await hre.ethers.getContractFactory("RewardDistributorFactory");
-      const factory = await Factory.deploy(deployer.address, implAddress);
+      const factory = await Factory.deploy(deployer.address, implAddress, {
+        gasLimit: 15000000 // 15M gas limit
+      });
       await factory.waitForDeployment();
       const factoryAddress = await factory.getAddress();
       console.log(`Factory contract deployed to: ${factoryAddress}`);

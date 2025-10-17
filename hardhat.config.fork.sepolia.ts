@@ -22,7 +22,7 @@ const config: HardhatUserConfig = {
       chainId: 11155111,  // chainId must be the same as the forking network
         accounts: PK ? [PK] : {
             mnemonic: MNEMONIC || DEFAULT_MNEMONIC,
-        },
+        } as any,
     },
   },
   solidity: {
