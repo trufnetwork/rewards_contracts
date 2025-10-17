@@ -1,5 +1,6 @@
-import { HardhatUserConfig, vars } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import type { HttpNetworkAccountsUserConfig } from "hardhat/types";
 
 import dotenv from 'dotenv';
 
@@ -8,6 +9,9 @@ dotenv.config();
 const { SEPOLIA_RPC, MAINNET_RPC, ETHERSCAN_API_KEY, PK, MNEMONIC } = process.env;
 const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk" // same as hardhat's default mnemonic
 
+const accounts: HttpNetworkAccountsUserConfig = PK 
+    ? [PK] 
+    : { mnemonic: MNEMONIC || DEFAULT_MNEMONIC };
 
 // @ts-ignore
 const config: HardhatUserConfig = {
@@ -20,9 +24,7 @@ const config: HardhatUserConfig = {
           blockNumber: 7606599,
       },
       chainId: 11155111,  // chainId must be the same as the forking network
-        accounts: PK ? [PK] : {
-            mnemonic: MNEMONIC || DEFAULT_MNEMONIC,
-        },
+      accounts: accounts as any,
     },
   },
   solidity: {

@@ -1,16 +1,11 @@
 import type { HardhatUserConfig, HttpNetworkUserConfig, HttpNetworkAccountsUserConfig } from "hardhat/types";
-
 import "@nomicfoundation/hardhat-toolbox";
-
 import dotenv from 'dotenv';
 
-const solidityVersion = "0.8.27";
-
-// Load environment variables.
 dotenv.config();
-const { SEPOLIA_RPC, BASE_SEPOLIA_RPC, MAINNET_RPC, ETHERSCAN_API_KEY, PK, MNEMONIC } = process.env;
+const { MAINNET_RPC, PK, MNEMONIC, ETHERSCAN_API_KEY } = process.env;
 
-const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk" // same as hardhat's default mnemonic
+const DEFAULT_MNEMONIC = "test test test test test test test test test test test junk";
 
 const accounts: HttpNetworkAccountsUserConfig = PK 
     ? [PK] 
@@ -18,46 +13,39 @@ const accounts: HttpNetworkAccountsUserConfig = PK
 
 const sharedNetworkConfig: HttpNetworkUserConfig = { accounts };
 
-
-// import custom tasks
+// Import custom tasks
 import "./tasks/misc";
 import "./tasks/deploy_factory";
 import "./tasks/deploy_clone";
 import "./tasks/deploy_safe";
-// upgradeable tasks
 import "./tasks/deploy_upgradeable_factory";
 import "./tasks/deploy_upgradeable_proxy";
 import "./tasks/deploy_new_implementation";
 import "./tasks/check_implementation";
 import "./tasks/generate_safe_upgrade_data";
 
-
 const config: HardhatUserConfig = {
     defaultNetwork: "hardhat",
     solidity: {
-        version: solidityVersion,
+        version: "0.8.27",
         settings: {
             optimizer: {
                 enabled: true,
                 runs: 200
             },
-            evmVersion: `paris`, // https://github.com/NomicFoundation/hardhat/issues/4232
+            evmVersion: "paris",
         },
     },
     networks: {
         hardhat: {
-            // hardfork: "merge", // https://ethereum.org/en/history/#paris
-            gasPrice: 1000000000,
+            forking: {
+                url: MAINNET_RPC || "https://eth.llamarpc.com",
+                // blockNumber: 18500000, // Optional: pin to specific block
+            },
+            chainId: 1
         },
-        sepolia: {
-            ...sharedNetworkConfig,
-            url: SEPOLIA_RPC || "https://ethereum-sepolia-rpc.publicnode.com",
-            chainId: 11155111,
-        },
-        baseSepolia: {
-            ...sharedNetworkConfig,
-            url: BASE_SEPOLIA_RPC,
-            chainId: 84532,
+        localhost: {
+            url: "http://127.0.0.1:8545"
         },
         mainnet: {
             ...sharedNetworkConfig,
@@ -65,22 +53,19 @@ const config: HardhatUserConfig = {
             chainId: 1
         },
     },
-  etherscan: {
+    etherscan: {
       apiKey: ETHERSCAN_API_KEY,
       customChains: [
           {
-              network: "base-sepolia",
-              chainId: 84532,
+              network: "mainnet",
+              chainId: 1,
               urls: {
-                  apiURL: "https://base-sepolia.blockscout.com/api",
-                  browserURL: "https://base-sepolia.blockscout.com/",
+                  apiURL: "https://api.etherscan.io/v2/api?chainId=1",
+                  browserURL: "https://etherscan.io",
               }
           }
       ]
-  },
-  sourcify: {
-        enabled: false,
-  }
+    }
 };
 
 export default config;
